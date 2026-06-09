@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Auth/Auth.csproj" Id="c301c6d7-2268-49ea-9073-01432400b4ca" />
+  <Project Path="Shared/Shared.csproj" Id="19ae9174-ceb0-404e-80ef-67f18ac0011e" />
+</Solution>

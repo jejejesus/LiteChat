@@ -1,0 +1,118 @@
+using Auth.Endpoints;
+using Auth.Middleware;
+using Auth.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Shared.Data;
+using System.Text;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Configurar DbContext con PostgreSQL
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Configurar servicios
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Configurar JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "mi-clave-secreta-super-segura-para-desarrollo-123456";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "LiteChat";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "LiteChatClients";
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+
+        // Para SignalR y WebSockets
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// Add services to the container.
+builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() { Title = "LiteChat Auth API", Version = "v1" });
+
+    // Configurar JWT en Swagger
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header usando Bearer scheme. Ejemplo: \"Bearer {token}\"",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "LiteChat Auth API v1");
+        c.RoutePrefix = "swagger";
+    });
+}
+
+// Middleware de manejo de errores
+app.UseMiddleware<ErrorHandlingMiddleware>();
+
+app.UseHttpsRedirection();
+
+// Autenticación y autorización
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Registrar los endpoints
+app.MapAuthEndpoints();
+// app.MapUserEndpoints(); // Descomentar cuando los tengas
+
+app.Run();

@@ -1,0 +1,144 @@
+# Dependencias de Node.js (Next.js, pnpm)
+node_modules/
+.pnpm-store/
+.npm
+.eslintcache
+
+# Next.js específico
+.next/
+out/
+build/
+dist/
+.nuxt/
+.cache/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Variables de entorno
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+.env*.local
+
+# Next.js build output
+.next/build/
+.next/static/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# ASP.NET REST API
+**/bin/
+**/obj/
+**/out/
+**/publish/
+*.user
+*.suo
+*.userosscache
+*.userprefs
+*.lock.json
+*.vs/
+.vs/
+**/.vs/
+**/Generated\ Files/
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+*.DotSettings.user
+
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Archivos de dependencia
+vendor/
+**/vendor/
+
+# Archivo de cobertura
+*.cover
+*.coverprofile
+coverage.txt
+coverage.html
+
+# Docker
+**/*.tar
+**/*.tar.gz
+**/docker-compose.override.yml
+**/docker-compose.local.yml
+**/.dockerignore
+**/docker-compose.dev.yml
+
+# Kubernetes
+**/*.secret.yaml
+**/secrets.yaml
+**/kubeconfig
+**/.kube/
+**/helm/values.local.yaml
+**/helm/charts/
+**/helm/requirements.lock
+
+# Archivos del sistema
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+desktop.ini
+$RECYCLE.BIN/
+
+# Archivos de cobertura de pruebas
+coverage/
+**.lcov
+**.nyc_output
+
+# Archivos temporales
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/
+
+# Archivos de certificados
+*.pem
+*.crt
+*.key
+*.pfx
+*.p12
+
+# IDE específico
+*.sublime-*
+*.komodoproject
+*.code
+session.vim
+.viminfo
+.tern-project
+
+# Herramientas de build
+dist/
+build/
+build-*/
+out-*/
+
+# Scripts temporales
+**/temp_scripts/
+**/tmp_scripts/
