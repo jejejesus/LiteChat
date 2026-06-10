@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Shared.Entities.Auth;
 using Shared.Entities.Chat;
 using Shared.Enums.Chat;
@@ -312,11 +312,10 @@ namespace Shared.Data
         }
     }
 
-    // Value converter para DateOnly (PostgreSQL)
     public class DateOnlyConverter : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateOnly, DateTime>
     {
         public DateOnlyConverter() : base(
-            d => d.ToDateTime(TimeOnly.MinValue),
+            d => DateTime.SpecifyKind(d.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc),
             dt => DateOnly.FromDateTime(dt))
         { }
     }

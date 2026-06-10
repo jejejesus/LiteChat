@@ -1,144 +1,63 @@
-# Dependencias de Node.js (Next.js, pnpm)
-node_modules/
-.pnpm-store/
-.npm
-.eslintcache
-
-# Next.js específico
-.next/
-out/
-build/
-dist/
-.nuxt/
-.cache/
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# Variables de entorno
-.env
-.env.local
-.env.production
-.env.development
-.env.test
-.env*.local
-
-# Next.js build output
-.next/build/
-.next/static/
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
-# ASP.NET REST API
+# .NET
 **/bin/
 **/obj/
-**/out/
-**/publish/
+**/Migrations/*.Designer.cs
+!**/Migrations/AppDbContextModelSnapshot.cs
 *.user
 *.suo
-*.userosscache
-*.userprefs
-*.lock.json
-*.vs/
 .vs/
-**/.vs/
-**/Generated\ Files/
 
-# Rider / JetBrains
-.idea/
-*.sln.iml
-*.DotSettings.user
-
-# VSCode
+# VS Code
 .vscode/
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
 *.code-workspace
 
-# Archivos de dependencia
-vendor/
-**/vendor/
+# Node / Next.js
+**/node_modules/
+**/.next/
+**/out/
+**/.turbo/
 
-# Archivo de cobertura
-*.cover
-*.coverprofile
-coverage.txt
-coverage.html
+# pnpm
+pnpm-lock.yaml
+.pnpm-store/
 
-# Docker
-**/*.tar
-**/*.tar.gz
-**/docker-compose.override.yml
-**/docker-compose.local.yml
-**/.dockerignore
-**/docker-compose.dev.yml
+# Environment files
+*.env
+*.env.local
+*.env.*.local
 
-# Kubernetes
-**/*.secret.yaml
-**/secrets.yaml
-**/kubeconfig
-**/.kube/
-**/helm/values.local.yaml
-**/helm/charts/
-**/helm/requirements.lock
+# Build outputs
+**/dist/
+**/build/
 
-# Archivos del sistema
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Logs
+*.log
+**/logs/
+
+# IDE
+.idea/
 *.swp
 *.swo
 *~
-desktop.ini
-$RECYCLE.BIN/
 
-# Archivos de cobertura de pruebas
-coverage/
-**.lcov
-**.nyc_output
+# OS
+.DS_Store
+Thumbs.db
 
-# Archivos temporales
-tmp/
-temp/
-*.tmp
-*.temp
-.cache/
+# Database
+*.db
+*.sqlite
+*.sqlite-journal
 
-# Archivos de certificados
-*.pem
-*.crt
-*.key
+# Certificates
 *.pfx
 *.p12
+*.cer
 
-# IDE específico
-*.sublime-*
-*.komodoproject
-*.code
-session.vim
-.viminfo
-.tern-project
+# Local config (keep templates)
+**/appsettings.Development.json
+**/Properties/launchSettings.json
 
-# Herramientas de build
-dist/
-build/
-build-*/
-out-*/
-
-# Scripts temporales
-**/temp_scripts/
-**/tmp_scripts/
+# Test coverage
+**/TestResults/
+**/coverage/

@@ -1,8 +1,11 @@
 ﻿using Auth.DTOs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Shared.Data;
 using Shared.Entities.Auth;
 using Shared.Enums.Auth;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -106,9 +109,49 @@ namespace Auth.Services
 
         private string GenerateJwtToken(User user)
         {
-            // Implementar JWT (necesitarás instalar System.IdentityModel.Tokens.Jwt)
-            // Por ahora retornamos un token temporal
-            return Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            // Obtener configuración JWT
+            var jwtKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
+            var jwtIssuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("JWT Issuer not configured");
+            var jwtAudience = _configuration["Jwt:Audience"] ?? throw new InvalidOperationException("JWT Audience not configured");
+            var jwtExpiryHours = _configuration.GetValue<int>("Jwt:ExpiryHours", 24);
+
+            // Crear claims (información del usuario)
+            var claims = new List<Claim>
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(JwtRegisteredClaimNames.Name, user.Name),
+                new Claim(JwtRegisteredClaimNames.FamilyName, user.FirstSurname),
+                new Claim("phone_number", user.PhoneNumber ?? ""),
+                new Claim("status", user.Status.ToString()),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
+            };
+
+            // Agregar apellido segundo si existe
+            if (!string.IsNullOrEmpty(user.SecondSurname))
+            {
+                claims.Add(new Claim("second_surname", user.SecondSurname));
+            }
+
+            // Agregar el nombre completo como claim
+            claims.Add(new Claim("full_name", GetFullName(user)));
+
+            // Crear credenciales de firma
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            // Crear el token
+            var token = new JwtSecurityToken(
+                issuer: jwtIssuer,
+                audience: jwtAudience,
+                claims: claims,
+                expires: DateTime.UtcNow.AddHours(jwtExpiryHours),
+                signingCredentials: credentials
+            );
+
+            // Serializar el token
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         private string GetFullName(User user)

@@ -54,9 +54,9 @@ namespace Auth.Endpoints
             {
                 return Results.Conflict(new { error = ex.Message });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Results.Problem("Error interno del servidor", statusCode: 500);
+                return Results.Problem("Error interno del servidor" , statusCode: 500);
             }
         }
 

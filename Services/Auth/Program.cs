@@ -17,9 +17,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // Configurar JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "mi-clave-secreta-super-segura-para-desarrollo-123456";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "LiteChat";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "LiteChatClients";
+var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new Exception("Invalid Jwt:Key");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? throw new Exception("Invalid Jwt:Issuer");
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? throw new Exception("Invalid Jwt:Audience");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

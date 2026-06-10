@@ -39,9 +39,26 @@ namespace Shared.Entities.Auth
         public required string HashedPassword { get; set; }
 
         // Timestamps
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? DeletedAt { get; set; }
+        private DateTime _createdAt = DateTime.UtcNow;
+        public DateTime CreatedAt 
+        { 
+            get => _createdAt;
+            set => _createdAt = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        }
+    
+        private DateTime _updatedAt = DateTime.UtcNow;
+        public DateTime UpdatedAt 
+        { 
+            get => _updatedAt;
+            set => _updatedAt = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        }
+    
+        private DateTime? _deletedAt;
+        public DateTime? DeletedAt 
+        { 
+            get => _deletedAt;
+            set => _deletedAt = value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : null;
+        }
 
         // Navigation properties
         public ICollection<Conversation> CreatedConversations { get; set; } = [];

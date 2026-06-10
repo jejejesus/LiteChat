@@ -17,10 +17,33 @@ namespace Shared.Entities.Chat
         public string? Body { get; set; }
 
         // Timestamps
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? EditedAt { get; set; }
-        public DateTime? DeletedAt { get; set; }
+        private DateTime _createdAt = DateTime.UtcNow;
+        public DateTime CreatedAt
+        {
+            get => _createdAt;
+            set => _createdAt = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        }
+
+        private DateTime _updatedAt = DateTime.UtcNow;
+        public DateTime UpdatedAt
+        {
+            get => _updatedAt;
+            set => _updatedAt = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        }
+
+        private DateTime? _editedAt;
+        public DateTime? EditedAt
+        {
+            get => _editedAt;
+            set => _editedAt = value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : null;
+        }
+
+        private DateTime? _deletedAt;
+        public DateTime? DeletedAt
+        {
+            get => _deletedAt;
+            set => _deletedAt = value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : null;
+        }
 
         // Navigation properties
         public Conversation? Conversation { get; set; }
@@ -49,7 +72,12 @@ namespace Shared.Entities.Chat
 
         public long SizeBytes { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        private DateTime _createdAt = DateTime.UtcNow;
+        public DateTime CreatedAt
+        {
+            get => _createdAt;
+            set => _createdAt = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        }
 
         // Navigation properties
         public Message? Message { get; set; }
