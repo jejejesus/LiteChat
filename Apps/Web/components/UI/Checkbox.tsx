@@ -10,7 +10,7 @@ import {
   CSSProperties,
 } from "react";
 
-export interface ToggleProps extends Omit<
+export interface CheckboxProps extends Omit<
   InputHTMLAttributes<HTMLInputElement>,
   "onChange" | "color"
 > {
@@ -18,15 +18,22 @@ export interface ToggleProps extends Omit<
   onChange?: (checked: boolean) => void;
   label?: ReactNode;
   color?: "primary" | "secondary" | "accent" | "highlight" | "neutral";
-  labelPlacement?: "start" | "end";
 }
 
-const activeBgClasses = {
+const checkedColorClasses = {
   primary: "bg-primary border-primary text-white",
   secondary: "bg-secondary border-secondary text-white",
   accent: "bg-accent border-accent text-white",
   highlight: "bg-highlight border-highlight text-foreground",
   neutral: "bg-neutral border-neutral text-white",
+};
+
+const hoverBorderClasses = {
+  primary: "hover:border-primary",
+  secondary: "hover:border-secondary",
+  accent: "hover:border-accent",
+  highlight: "hover:border-highlight",
+  neutral: "hover:border-neutral",
 };
 
 const focusRingClasses = {
@@ -45,17 +52,16 @@ const waveColorVars = {
   neutral: "var(--taupe-grey)",
 };
 
-export default function Toggle({
+export default function Checkbox({
   checked = false,
   onChange,
   label,
   color = "primary",
   disabled = false,
-  labelPlacement = "end",
   className = "",
   style,
   ...props
-}: ToggleProps) {
+}: CheckboxProps) {
   const [isAnimateWave, setIsAnimateWave] = useState(false);
   const generatedId = useId();
   const id = props.id || generatedId;
@@ -74,62 +80,59 @@ export default function Toggle({
   };
 
   const handleAnimationEnd = (e: AnimationEvent<HTMLDivElement>) => {
-    if (e.animationName === "toggleEffect") {
+    if (e.animationName === "checkboxEffect") {
       setIsAnimateWave(false);
     }
   };
 
-  const waveClass = isAnimateWave ? "toggle-wave-active" : "";
+  const waveClass = isAnimateWave ? "checkbox-wave-active" : "";
 
-  // Base Pill Container Layout
-  const basePillStyles =
-    "w-10 h-6 rounded-full transition-all duration-300 flex items-center relative aspect-video shrink-0 select-none p-0.5 border";
+  // Base Box Layout
+  const baseBoxStyles =
+    "w-[18px] h-[18px] rounded border transition-all duration-200 flex items-center justify-center relative aspect-square shrink-0 select-none";
 
   // Unchecked state styles
-  const uncheckedBgStyles = "bg-zinc-200 border-zinc-200 ";
+  const uncheckedBoxStyles = "bg-white border-zinc-300";
 
   // Interaction styles when not disabled
   const interactionStyles = disabled
     ? "opacity-50 cursor-not-allowed"
-    : "cursor-pointer active:scale-95 group-hover:brightness-95";
+    : `cursor-pointer active:scale-95 ${hoverBorderClasses[color]}`;
 
   // Checked state styles
-  const checkedBgStyles = activeBgClasses[color];
+  const checkedBoxStyles = checkedColorClasses[color];
 
-  // Final composite class names for the pill container
-  const pillClassName = `${basePillStyles} ${
-    checked ? checkedBgStyles : uncheckedBgStyles
+  // Final composite class names for the box
+  const boxClassName = `${baseBoxStyles} ${
+    checked ? checkedBoxStyles : uncheckedBoxStyles
   } ${interactionStyles} ${waveClass}`;
-
-  // Handle Translate position
-  const handleTranslate = checked ? "translate-x-[16px]" : "translate-x-0";
 
   return (
     <>
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        @keyframes toggleEffect {
+        @keyframes checkboxEffect {
           0% {
-            box-shadow: 0 0 0 0px var(--toggle-wave-color);
+            box-shadow: 0 0 0 0px var(--checkbox-wave-color);
             opacity: 0.5;
           }
           100% {
-            box-shadow: 0 0 0 6px var(--toggle-wave-color);
+            box-shadow: 0 0 0 6px var(--checkbox-wave-color);
             opacity: 0;
           }
         }
-        .toggle-wave-active {
+        .checkbox-wave-active {
           position: relative;
         }
-        .toggle-wave-active::after {
+        .checkbox-wave-active::after {
           content: '';
           position: absolute;
           inset: -1px;
-          border-radius: 9999px;
+          border-radius: 4px;
           opacity: 0;
-          box-shadow: 0 0 0 0px var(--toggle-wave-color);
-          animation: toggleEffect 0.4s ease-out;
+          box-shadow: 0 0 0 0px var(--checkbox-wave-color);
+          animation: checkboxEffect 0.4s ease-out;
           pointer-events: none;
         }
       `,
@@ -143,10 +146,6 @@ export default function Toggle({
         } rounded-md px-1 py-0.5 transition-all duration-200 outline-none ${className}`}
         style={style}
       >
-        {label && labelPlacement === "start" && (
-          <span className="font-medium text-sm leading-none">{label}</span>
-        )}
-
         <input
           {...props}
           id={id}
@@ -158,18 +157,27 @@ export default function Toggle({
         />
 
         <div
-          className={`${pillClassName} ${focusRingClasses[color]}`}
+          className={`${boxClassName} ${focusRingClasses[color]}`}
           onAnimationEnd={handleAnimationEnd}
           style={
-            { "--toggle-wave-color": waveColorVars[color] } as CSSProperties
+            { "--checkbox-wave-color": waveColorVars[color] } as CSSProperties
           }
         >
-          <div
-            className={`w-4.5 h-4.5 rounded-full bg-white  shadow-sm transition-all duration-250 ease-[cubic-bezier(0.12,0.4,0.29,1.46)] ${handleTranslate} group-active:w-5.5`}
-          />
+          <svg
+            className={`w-3.5 h-3.5 stroke-current stroke-[3.5] fill-none transition-all duration-200 ease-[cubic-bezier(0.12,0.4,0.29,1.46)] ${
+              checked ? "scale-100 opacity-100" : "scale-50 opacity-0"
+            }`}
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4.5 12.75l6 6 9-13.5"
+            />
+          </svg>
         </div>
 
-        {label && labelPlacement === "end" && (
+        {label && (
           <span className="font-medium text-sm leading-none">{label}</span>
         )}
       </label>

@@ -13,11 +13,12 @@ import Image from "next/image";
 import SearchBox from "./SearchBox";
 import Button from "./Button";
 
-import LiteChatLogoH from "../../public/LiteChat-Logo-H.png";
+import LiteChatLogoH from "@/public/LiteChat-Logo-H.png";
 
 interface MenuProps {
   children: ReactNode;
 }
+
 export default function Menus({ children }: MenuProps) {
   return (
     <div className="flex flex-col h-screen bg-zinc-100">
