@@ -99,8 +99,14 @@ LiteChat/
 │       ├── app/
 │       │   ├── (chat)/           # Páginas del chat
 │       │   └── auth/             # Páginas de autenticación
-│       └── components/
+│       ├── components/
 │           └── UI/               # Componentes reutilizables
+│       ├── .env.local            # Variables de entorno (URL de la API)
+│       ├── lib/
+│       │   └── api.ts            # Cliente HTTP para la API de autenticación
+│       ├── contexts/
+│       │   └── AuthContext.tsx   # Contexto global de autenticación
+│       └── middleware.ts         # Protección de rutas del lado del servidor
 ├── Services/
 │   ├── Auth/                     # Microservicio de autenticación
 │   │   ├── Endpoints/            # Endpoints de la API
@@ -114,12 +120,6 @@ LiteChat/
 ├── Packages/                     # Paquetes compartidos (pendiente)
 ├── package.json                  # Configuración del monorepo
 ├── pnpm-workspace.yaml           # Workspace de pnpm
-├── .env.local                    # Variables de entorno (URL de la API)
-├── lib/
-│   └── api.ts                    # Cliente HTTP para la API de autenticación
-├── contexts/
-│   └── AuthContext.tsx            # Contexto global de autenticación
-└── middleware.ts                 # Protección de rutas del lado del servidor
 ```
 
 ## Licencia
