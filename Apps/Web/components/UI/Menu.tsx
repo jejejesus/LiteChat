@@ -1,14 +1,18 @@
 "use client";
 
+"use client";
+
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Menu01Icon,
   Settings01Icon,
   UserCircle02Icon,
+  Logout04Icon,
 } from "@hugeicons/core-free-icons";
 import { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useAuth } from "@/contexts/AuthContext";
 
 import SearchBox from "./SearchBox";
 import Button from "./Button";
@@ -20,6 +24,8 @@ interface MenuProps {
 }
 
 export default function Menus({ children }: MenuProps) {
+  const { user, logout } = useAuth();
+
   return (
     <div className="flex flex-col h-screen bg-zinc-100">
       <nav className="flex h-14 justify-between px-1 py-2 align-middle">
@@ -34,9 +40,18 @@ export default function Menus({ children }: MenuProps) {
         <div className="w-1/3">
           <SearchBox className="w-full" />
         </div>
-        <div className="flex items-center">
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-zinc-500 font-medium mr-1">
+            {user?.fullName}
+          </span>
           <Button icon={Settings01Icon} variant="text" color="neutral" />
           <Button icon={UserCircle02Icon} variant="text" color="neutral" />
+          <Button
+            icon={Logout04Icon}
+            variant="text"
+            color="neutral"
+            onClick={logout}
+          />
         </div>
       </nav>
       <div className="flex flex-1 min-h-0">

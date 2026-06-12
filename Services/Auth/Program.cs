@@ -9,6 +9,18 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configurar CORS
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // Configurar DbContext con PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -104,6 +116,8 @@ if (app.Environment.IsDevelopment())
 
 // Middleware de manejo de errores
 app.UseMiddleware<ErrorHandlingMiddleware>();
+
+app.UseCors();
 
 app.UseHttpsRedirection();
 
