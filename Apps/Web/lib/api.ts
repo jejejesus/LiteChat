@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5004";
+const API_URL = process.env.NEXT_PUBLIC_AUTH_API_URL ?? "http://localhost:5004";
 
 interface AuthResponse {
   userId: string;
