@@ -108,7 +108,12 @@ LiteChat/
 │       │   └── AuthContext.tsx   # Contexto global de autenticación
 │       └── middleware.ts         # Protección de rutas del lado del servidor
 ├── Services/
-│   ├── Auth/                     # Microservicio de autenticación
+│   ├── Auth/                     # Servicio de autenticación
+│   │   ├── Endpoints/            # Endpoints de la API
+│   │   ├── Services/             # Lógica de negocio
+│   │   ├── DTOs/                 # Objetos de transferencia de datos
+│   │   └── Middleware/           # Middleware personalizado
+│   ├── Messages/                 # Servicio de mensajes
 │   │   ├── Endpoints/            # Endpoints de la API
 │   │   ├── Services/             # Lógica de negocio
 │   │   ├── DTOs/                 # Objetos de transferencia de datos
