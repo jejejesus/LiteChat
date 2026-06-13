@@ -15,17 +15,17 @@ namespace Messages.Endpoints
             // GET /api/chat/conversations
             group.MapGet("/conversations", GetUserConversationsAsync)
                 .WithName("GetUserConversations")
-                .Produces<List<ConversationDto>>(StatusCodes.Status200OK);
+                .Produces<List<ConversationDTO>>(StatusCodes.Status200OK);
 
             // GET /api/chat/conversations/{conversationId}/messages
             group.MapGet("/conversations/{conversationId}/messages", GetConversationMessagesAsync)
                 .WithName("GetConversationMessages")
-                .Produces<List<MessageDto>>(StatusCodes.Status200OK);
+                .Produces<List<MessageDTO>>(StatusCodes.Status200OK);
 
             // POST /api/chat/messages
             group.MapPost("/messages", SendMessageAsync)
                 .WithName("SendMessage")
-                .Produces<MessageDto>(StatusCodes.Status201Created)
+                .Produces<MessageDTO>(StatusCodes.Status201Created)
                 .ProducesValidationProblem(StatusCodes.Status400BadRequest);
 
             // POST /api/chat/conversations/{conversationId}/read

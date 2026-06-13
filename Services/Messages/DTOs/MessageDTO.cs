@@ -2,7 +2,7 @@
 
 namespace Messages.DTOs
 {
-    public class MessageDto
+    public class MessageDTO
     {
         public Guid Id { get; set; }
         public Guid ConversationId { get; set; }
@@ -14,6 +14,6 @@ namespace Messages.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime? EditedAt { get; set; }
         public bool IsEdited => EditedAt.HasValue;
-        public List<MessageAttachmentDto> Attachments { get; set; } = [];
+        public List<MessageAttachmentDTO> Attachments { get; set; } = [];
     }
 }

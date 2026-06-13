@@ -17,13 +17,13 @@ namespace Messages.Services
             _logger = logger;
         }
 
-        public async Task<List<ConversationDto>> GetUserConversationsAsync(Guid userId)
+        public async Task<List<ConversationDTO>> GetUserConversationsAsync(Guid userId)
         {
             var conversations = await _context.ConversationMembers
                 .Where(cm => cm.UserId == userId && cm.LeftAt == null)
                 .Include(cm => cm.Conversation)
                     .ThenInclude(c => c.Messages.OrderByDescending(m => m.CreatedAt).Take(1))
-                .Select(cm => new ConversationDto
+                .Select(cm => new ConversationDTO
                 {
                     Id = cm.Conversation.Id,
                     Type = cm.Conversation.Type,
@@ -37,7 +37,7 @@ namespace Messages.Services
                     LastMessage = cm.Conversation.Messages
                         .OrderByDescending(m => m.CreatedAt)
                         .Take(1)
-                        .Select(m => new MessageDto
+                        .Select(m => new MessageDTO
                         {
                             Id = m.Id,
                             ConversationId = m.ConversationId,
@@ -54,7 +54,7 @@ namespace Messages.Services
             return conversations;
         }
 
-        public async Task<List<MessageDto>> GetConversationMessagesAsync(Guid conversationId, Guid userId, int page = 1, int pageSize = 50)
+        public async Task<List<MessageDTO>> GetConversationMessagesAsync(Guid conversationId, Guid userId, int page = 1, int pageSize = 50)
         {
             // Verificar que el usuario es miembro de la conversación
             var isMember = await _context.ConversationMembers
@@ -70,7 +70,7 @@ namespace Messages.Services
                 .OrderByDescending(m => m.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(m => new MessageDto
+                .Select(m => new MessageDTO
                 {
                     Id = m.Id,
                     ConversationId = m.ConversationId,
@@ -81,7 +81,7 @@ namespace Messages.Services
                     Body = m.Body,
                     CreatedAt = m.CreatedAt,
                     EditedAt = m.EditedAt,
-                    Attachments = m.Attachments.Select(a => new MessageAttachmentDto
+                    Attachments = m.Attachments.Select(a => new MessageAttachmentDTO
                     {
                         Id = a.Id,
                         StorageUrl = a.StorageUrl,
@@ -95,7 +95,7 @@ namespace Messages.Services
             return messages;
         }
 
-        public async Task<MessageDto> SendMessageAsync(Guid userId, SendMessageRequest request)
+        public async Task<MessageDTO> SendMessageAsync(Guid userId, SendMessageRequest request)
         {
             // Verificar membresía
             var member = await _context.ConversationMembers
@@ -137,7 +137,7 @@ namespace Messages.Services
                 .Where(a => a.MessageId == message.Id)
                 .ToListAsync();
 
-            return new MessageDto
+            return new MessageDTO
             {
                 Id = message.Id,
                 ConversationId = message.ConversationId,
@@ -148,7 +148,7 @@ namespace Messages.Services
                 Body = message.Body,
                 CreatedAt = message.CreatedAt,
                 EditedAt = message.EditedAt,
-                Attachments = attachments.Select(a => new MessageAttachmentDto
+                Attachments = attachments.Select(a => new MessageAttachmentDTO
                 {
                     Id = a.Id,
                     StorageUrl = a.StorageUrl,
