@@ -1,6 +1,8 @@
 ﻿using Messages.DTOs;
+using Messages.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Shared.Data;
+using Shared.Entities.Auth;
 using Shared.Entities.Chat;
 using Shared.Enums.Chat;
 
@@ -186,6 +188,222 @@ namespace Messages.Services
             }
 
             return conversation.Name ?? "Sin nombre";
+        }
+
+    public async Task<FriendRequestDTO> SendFriendRequestAsync(Guid senderUserId, SendFriendRequestRequest request)
+        {
+            // No enviarse a sí mismo
+            if (senderUserId == request.ReceiverUserId)
+                throw new InvalidOperationException("No puedes enviarte una solicitud a ti mismo");
+
+            // Verificar que el receptor existe
+            var receiver = await _context.Users.FindAsync(request.ReceiverUserId);
+            if (receiver == null)
+                throw new NotFoundException("Usuario no encontrado");
+
+            // Verificar si ya existe una solicitud pendiente
+            var existingRequest = await _context.FriendRequests
+                .FirstOrDefaultAsync(r =>
+                    (r.SenderUserId == senderUserId && r.ReceiverUserId == request.ReceiverUserId && r.Status == FriendRequestStatus.Pending) ||
+                    (r.SenderUserId == request.ReceiverUserId && r.ReceiverUserId == senderUserId && r.Status == FriendRequestStatus.Pending));
+
+            if (existingRequest != null)
+                throw new InvalidOperationException("Ya existe una solicitud pendiente entre estos usuarios");
+
+            // Verificar si ya son amigos (tienen una conversación direct_message activa)
+            var existingConversation = await _context.ConversationMembers
+                .Where(cm => cm.UserId == senderUserId && cm.LeftAt == null)
+                .Select(cm => cm.Conversation)
+                .Where(c => c.Type == ConversationType.direct_message)
+                .FirstOrDefaultAsync(c => c.Members.Any(m => m.UserId == request.ReceiverUserId && m.LeftAt == null));
+
+            if (existingConversation != null)
+                throw new InvalidOperationException("Ya son amigos");
+
+            var friendRequest = new FriendRequest
+            {
+                Id = Guid.NewGuid(),
+                SenderUserId = senderUserId,
+                ReceiverUserId = request.ReceiverUserId,
+                Message = request.Message,
+                Status = FriendRequestStatus.Pending,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.FriendRequests.Add(friendRequest);
+            await _context.SaveChangesAsync();
+
+            return await MapToFriendRequestDto(friendRequest);
+        }
+
+        public async Task<List<FriendRequestDTO>> GetPendingFriendRequestsAsync(Guid userId)
+        {
+            var requests = await _context.FriendRequests
+                .Where(r => r.ReceiverUserId == userId && r.Status == FriendRequestStatus.Pending)
+                .Include(r => r.SenderUser)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            return requests.Select(r => MapToFriendRequestDto(r).Result).ToList();
+        }
+
+        public async Task<FriendRequestDTO> RespondToFriendRequestAsync(Guid userId, RespondFriendRequestRequest request)
+        {
+            var friendRequest = await _context.FriendRequests
+                .Include(r => r.SenderUser)
+                .Include(r => r.ReceiverUser)
+                .FirstOrDefaultAsync(r => r.Id == request.RequestId && r.ReceiverUserId == userId);
+
+            if (friendRequest == null)
+                throw new NotFoundException("Solicitud no encontrada");
+
+            if (friendRequest.Status != FriendRequestStatus.Pending)
+                throw new InvalidOperationException("Esta solicitud ya fue respondida");
+
+            friendRequest.Status = request.Status;
+            friendRequest.RespondedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            // Si es aceptada, crear la conversación directa
+            if (request.Status == FriendRequestStatus.Accepted)
+            {
+                await CreateDirectConversationAsync(friendRequest.SenderUserId, friendRequest.ReceiverUserId);
+            }
+
+            return await MapToFriendRequestDto(friendRequest);
+        }
+
+        public async Task<ConversationDTO> CreateDirectConversationAsync(Guid userId1, Guid userId2)
+        {
+            // Verificar si ya existe una conversación directa
+            var existingConversation = await _context.ConversationMembers
+                .Where(cm => cm.UserId == userId1 && cm.LeftAt == null)
+                .Select(cm => cm.Conversation)
+                .Where(c => c.Type == ConversationType.direct_message)
+                .FirstOrDefaultAsync(c => c.Members.Any(m => m.UserId == userId2 && m.LeftAt == null));
+
+            if (existingConversation != null)
+                return await MapToConversationDto(existingConversation, userId1);
+
+            // Crear nueva conversación
+            var conversation = new Conversation
+            {
+                Id = Guid.NewGuid(),
+                Type = ConversationType.direct_message,
+                CreatedByUserId = userId1,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.Conversations.Add(conversation);
+
+            // Agregar ambos miembros
+            var member1 = new ConversationMember
+            {
+                ConversationId = conversation.Id,
+                UserId = userId1,
+                Role = MemberRole.member,
+                JoinedAt = DateTime.UtcNow
+            };
+
+            var member2 = new ConversationMember
+            {
+                ConversationId = conversation.Id,
+                UserId = userId2,
+                Role = MemberRole.member,
+                JoinedAt = DateTime.UtcNow
+            };
+
+            _context.ConversationMembers.AddRange(member1, member2);
+            await _context.SaveChangesAsync();
+
+            return await MapToConversationDto(conversation, userId1);
+        }
+
+        public async Task<List<UserDTO>> GetUserFriendsAsync(Guid userId)
+        {
+            var friends = await _context.ConversationMembers
+                .Where(cm => cm.UserId == userId && cm.LeftAt == null)
+                .Select(cm => cm.Conversation)
+                .Where(c => c.Type == ConversationType.direct_message)
+                .SelectMany(c => c.Members)
+                .Where(cm => cm.UserId != userId && cm.LeftAt == null)
+                .Select(cm => new UserDTO
+                {
+                    Id = cm.User!.Id,
+                    Name = cm.User.Name,
+                    FirstSurname = cm.User.FirstSurname,
+                    SecondSurname = cm.User.SecondSurname,
+                    SurnameFirst = cm.User.SurnameFirst,
+                    AvatarUrl = cm.User.AvatarUrl,
+                    Status = cm.User.Status,
+                    FullName = cm.User.SurnameFirst
+                        ? $"{cm.User.FirstSurname} {cm.User.SecondSurname} {cm.User.Name}"
+                        : $"{cm.User.Name} {cm.User.FirstSurname} {cm.User.SecondSurname}"
+                })
+                .ToListAsync();
+
+            return friends;
+        }
+
+        // Métodos auxiliares privados
+        private async Task<FriendRequestDTO> MapToFriendRequestDto(FriendRequest request)
+        {
+            return new FriendRequestDTO
+            {
+                Id = request.Id,
+                SenderUserId = request.SenderUserId,
+                SenderName = GetFullName(request.SenderUser),
+                SenderAvatarUrl = request.SenderUser?.AvatarUrl,
+                ReceiverUserId = request.ReceiverUserId,
+                ReceiverName = GetFullName(request.ReceiverUser),
+                ReceiverAvatarUrl = request.ReceiverUser?.AvatarUrl,
+                Status = request.Status,
+                Message = request.Message,
+                CreatedAt = request.CreatedAt,
+                RespondedAt = request.RespondedAt
+            };
+        }
+
+        private async Task<ConversationDTO> MapToConversationDto(Conversation conversation, Guid currentUserId)
+        {
+            return new ConversationDTO
+            {
+                Id = conversation.Id,
+                Type = conversation.Type,
+                Name = conversation.Type == ConversationType.direct_message
+                    ? GetOtherMemberName(conversation.Id, currentUserId)
+                    : conversation.Name,
+                IconUrl = conversation.IconUrl,
+                Description = conversation.Description,
+                UnreadCount = await _context.Messages
+                    .CountAsync(m => m.ConversationId == conversation.Id &&
+                        m.CreatedAt > (_context.ConversationMembers
+                            .Where(cm => cm.ConversationId == conversation.Id && cm.UserId == currentUserId)
+                            .Select(cm => cm.LastReadAt)
+                            .FirstOrDefault() ?? DateTime.MinValue)),
+                UpdatedAt = conversation.UpdatedAt
+            };
+        }
+
+        private string GetFullName(User? user)
+        {
+            if (user == null) return string.Empty;
+
+            return user.SurnameFirst
+                ? $"{user.FirstSurname} {user.SecondSurname} {user.Name}".Trim()
+                : $"{user.Name} {user.FirstSurname} {user.SecondSurname}".Trim();
+        }
+
+        private string GetOtherMemberName(Guid conversationId, Guid currentUserId)
+        {
+            var otherMember = _context.ConversationMembers
+                .Where(cm => cm.ConversationId == conversationId && cm.UserId != currentUserId)
+                .Select(cm => cm.User)
+                .FirstOrDefault();
+
+            return GetFullName(otherMember);
         }
     }
 }

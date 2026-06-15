@@ -1,5 +1,7 @@
 ﻿using Messages.DTOs;
 using Messages.Services;
+using Microsoft.EntityFrameworkCore;
+using Shared.Data;
 using System.Security.Claims;
 
 namespace Messages.Endpoints
@@ -32,6 +34,37 @@ namespace Messages.Endpoints
             group.MapPost("/conversations/{conversationId}/read", MarkMessagesAsReadAsync)
                 .WithName("MarkMessagesAsRead")
                 .Produces(StatusCodes.Status204NoContent);
+
+            // Friend Requests endpoints
+            var friendGroup = app.MapGroup("/api/friends")
+                .WithTags("Friends")
+                .RequireAuthorization();
+
+            // POST /api/friends/requests
+            friendGroup.MapPost("/requests", SendFriendRequestAsync)
+                .WithName("SendFriendRequest")
+                .Produces<FriendRequestDTO>(StatusCodes.Status201Created);
+
+            // GET /api/friends/requests/pending
+            friendGroup.MapGet("/requests/pending", GetPendingFriendRequestsAsync)
+                .WithName("GetPendingFriendRequests")
+                .Produces<List<FriendRequestDTO>>(StatusCodes.Status200OK);
+
+            // PUT /api/friends/requests/{requestId}/respond
+            friendGroup.MapPut("/requests/{requestId}/respond", RespondToFriendRequestAsync)
+                .WithName("RespondToFriendRequest")
+                .Produces<FriendRequestDTO>(StatusCodes.Status200OK);
+
+            // GET /api/friends/list
+            friendGroup.MapGet("/list", GetFriendsListAsync)
+                .WithName("GetFriendsList")
+                .Produces<List<UserDTO>>(StatusCodes.Status200OK);
+
+            // POST /api/friends/search
+            friendGroup.MapPost("/search", SearchUsersAsync)
+                .WithName("SearchUsers")
+                .Produces<List<UserDTO>>(StatusCodes.Status200OK);
+
         }
 
         private static async Task<IResult> GetUserConversationsAsync(
@@ -95,6 +128,77 @@ namespace Messages.Endpoints
                 throw new UnauthorizedAccessException("Usuario no identificado");
 
             return Guid.Parse(userIdClaim);
+        }
+
+        private static async Task<IResult> SendFriendRequestAsync(SendFriendRequestRequest request, ClaimsPrincipal user, IChatService chatService)
+        {
+            var userId = GetUserId(user);
+            var result = await chatService.SendFriendRequestAsync(userId, request);
+            return Results.Created($"/api/friends/requests/{result.Id}", result);
+        }
+
+        private static async Task<IResult> GetPendingFriendRequestsAsync(
+            ClaimsPrincipal user,
+            IChatService chatService)
+        {
+            var userId = GetUserId(user);
+            var requests = await chatService.GetPendingFriendRequestsAsync(userId);
+            return Results.Ok(requests);
+        }
+
+        private static async Task<IResult> RespondToFriendRequestAsync(
+            Guid requestId,
+            RespondFriendRequestRequest request,
+            ClaimsPrincipal user,
+            IChatService chatService)
+        {
+            if (requestId != request.RequestId)
+                return Results.BadRequest("ID mismatch");
+
+            var userId = GetUserId(user);
+            var result = await chatService.RespondToFriendRequestAsync(userId, request);
+            return Results.Ok(result);
+        }
+
+        private static async Task<IResult> GetFriendsListAsync(
+            ClaimsPrincipal user,
+            IChatService chatService)
+        {
+            var userId = GetUserId(user);
+            var friends = await chatService.GetUserFriendsAsync(userId);
+            return Results.Ok(friends);
+        }
+
+        private static async Task<IResult> SearchUsersAsync(
+            SearchUsersRequest request,
+            AppDbContext dbContext,
+            ClaimsPrincipal user)
+        {
+            var currentUserId = GetUserId(user);
+
+            var users = await dbContext.Users
+                .Where(u => u.Id != currentUserId &&
+                    (u.Email.Contains(request.Query) ||
+                     u.Name.Contains(request.Query) ||
+                     u.FirstSurname.Contains(request.Query) ||
+                     (u.Name + " " + u.FirstSurname).Contains(request.Query)))
+                .Take(20)
+                .Select(u => new UserDTO
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    FirstSurname = u.FirstSurname,
+                    SecondSurname = u.SecondSurname,
+                    SurnameFirst = u.SurnameFirst,
+                    AvatarUrl = u.AvatarUrl,
+                    Status = u.Status,
+                    FullName = u.SurnameFirst
+                        ? $"{u.FirstSurname} {u.SecondSurname} {u.Name}"
+                        : $"{u.Name} {u.FirstSurname} {u.SecondSurname}"
+                })
+                .ToListAsync();
+
+            return Results.Ok(users);
         }
     }
 }

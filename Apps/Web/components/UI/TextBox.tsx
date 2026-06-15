@@ -34,9 +34,9 @@ const borderFocusClasses = {
 
 export interface TextBoxProps extends Omit<
   InputHTMLAttributes<HTMLInputElement>,
-  "value" | "onChange"
+  "value" | "onChange" | "type"
 > {
-  mask?: string;
+  type?: string;
   isOTP?: boolean;
   otpLength?: number;
   value?: string;
@@ -46,43 +46,8 @@ export interface TextBoxProps extends Omit<
   ref?: Ref<HTMLInputElement>;
 }
 
-const applyMask = (value: string, mask: string): string => {
-  let raw = "";
-  for (let i = 0; i < value.length; i++) {
-    if (/[\d\w]/.test(value[i])) raw += value[i];
-  }
-  let formatted = "";
-  let rawIdx = 0;
-  for (let i = 0; i < mask.length && rawIdx < raw.length; i++) {
-    const maskChar = mask[i];
-    if (maskChar === "9") {
-      if (/\d/.test(raw[rawIdx])) {
-        formatted += raw[rawIdx];
-        rawIdx++;
-      } else {
-        rawIdx++;
-        i--;
-      }
-    } else if (maskChar === "A") {
-      if (/[a-zA-Z]/.test(raw[rawIdx])) {
-        formatted += raw[rawIdx];
-        rawIdx++;
-      } else {
-        rawIdx++;
-        i--;
-      }
-    } else if (maskChar === "*") {
-      formatted += raw[rawIdx];
-      rawIdx++;
-    } else {
-      formatted += maskChar;
-    }
-  }
-  return formatted;
-};
-
 export default function TextBox({
-  mask,
+  type = "text",
   isOTP = false,
   otpLength = 6,
   value = "",
@@ -107,11 +72,7 @@ export default function TextBox({
   }, [value, isOTP, otpLength]);
 
   const handleTextChange = (e: ChangeEvent<HTMLInputElement>) => {
-    let raw = e.target.value;
-    if (mask) {
-      raw = applyMask(raw, mask);
-    }
-    if (onChange) onChange(raw);
+    if (onChange) onChange(e.target.value);
   };
 
   const handleOtpChange = (index: number, e: ChangeEvent<HTMLInputElement>) => {
@@ -196,7 +157,7 @@ export default function TextBox({
       <input
         {...props}
         ref={ref}
-        type="text"
+        type={type}
         value={value}
         onChange={handleTextChange}
         disabled={disabled}

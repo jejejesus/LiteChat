@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import * as api from "@/lib/api";
+import * as api from "@/lib/auth.api";
 
 interface User {
   userId: string;
@@ -102,5 +102,4 @@ export function useAuth() {
   return ctx;
 }
 
-export type { RegisterRequest } from "@/lib/api";
-
+export type { RegisterRequest } from "@/lib/auth.api";

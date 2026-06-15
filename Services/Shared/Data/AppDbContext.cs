@@ -17,6 +17,7 @@ namespace Shared.Data
         public DbSet<Message> Messages { get; set; }
         public DbSet<MessageAttachment> MessageAttachments { get; set; }
         public DbSet<DirectMessageKey> DirectMessageKeys { get; set; }
+        public DbSet<FriendRequest> FriendRequests { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -24,7 +25,6 @@ namespace Shared.Data
 
             modelBuilder.UseSnakeCaseNaming();
 
-            // Configurar esquemas
             modelBuilder.Entity<User>().ToTable("user", "auth");
             modelBuilder.Entity<Conversation>().ToTable("conversation", "chat");
             modelBuilder.Entity<ConversationMember>().ToTable("conversation_member", "chat");
@@ -32,7 +32,6 @@ namespace Shared.Data
             modelBuilder.Entity<MessageAttachment>().ToTable("message_attachment", "chat");
             modelBuilder.Entity<DirectMessageKey>().ToTable("direct_message_key", "chat");
 
-            // Configurar enums como strings
             modelBuilder.Entity<User>()
                 .Property(u => u.Status)
                 .HasConversion<string>();
@@ -49,9 +48,6 @@ namespace Shared.Data
                 .Property(cm => cm.Role)
                 .HasConversion<string>();
 
-            // =========================================================
-            // USER CONFIGURATIONS
-            // =========================================================
             modelBuilder.Entity<User>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -89,19 +85,14 @@ namespace Shared.Data
                 entity.Property(e => e.BirthDate)
                     .HasConversion<DateOnlyConverter, DateOnlyComparer>();
 
-                // Constraints
                 entity.ToTable(t => t.HasCheckConstraint(
                     "user_email_format_chk",
                     "position('@' in email) > 1"));
 
-                // Índices
                 entity.HasIndex(e => e.Status)
                     .HasDatabaseName("idx_user_status");
             });
 
-            // =========================================================
-            // CONVERSATION CONFIGURATIONS
-            // =========================================================
             modelBuilder.Entity<Conversation>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -120,7 +111,6 @@ namespace Shared.Data
                     .HasForeignKey(e => e.CreatedByUserId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // Constraints
                 entity.ToTable(t => t.HasCheckConstraint(
                     "conversation_name_required_for_channels_chk",
                     @"(
@@ -141,9 +131,6 @@ namespace Shared.Data
                     .HasDatabaseName("idx_conversation_created_by_user_id");
             });
 
-            // =========================================================
-            // CONVERSATION MEMBER CONFIGURATIONS
-            // =========================================================
             modelBuilder.Entity<ConversationMember>(entity =>
             {
                 entity.HasKey(e => new { e.ConversationId, e.UserId });
@@ -170,12 +157,10 @@ namespace Shared.Data
                     .HasPrincipalKey(m => new { m.ConversationId, m.Id })
                     .OnDelete(DeleteBehavior.SetNull);
 
-                // Constraints
                 entity.ToTable(t => t.HasCheckConstraint(
                     "conversation_member_read_time_chk",
                     "last_read_at IS NULL OR last_read_at >= joined_at"));
 
-                // Índices
                 entity.HasIndex(e => new { e.UserId, e.ConversationId })
                     .HasDatabaseName("idx_conversation_member_user_conversation");
 
@@ -183,9 +168,6 @@ namespace Shared.Data
                     .HasDatabaseName("idx_conversation_member_conversation_left_at");
             });
 
-            // =========================================================
-            // MESSAGE CONFIGURATIONS
-            // =========================================================
             modelBuilder.Entity<Message>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -205,12 +187,10 @@ namespace Shared.Data
                     .HasForeignKey(e => e.ParentMessageId)
                     .OnDelete(DeleteBehavior.SetNull);
 
-                // Clave única compuesta para la FK con ConversationMember
                 entity.HasIndex(e => new { e.ConversationId, e.Id })
                     .IsUnique()
                     .HasDatabaseName("uq_message_conversation_id_id");
 
-                // Constraints
                 entity.ToTable(t => t.HasCheckConstraint(
                     "message_not_own_parent_chk",
                     "parent_message_id IS NULL OR parent_message_id <> id"));
@@ -219,7 +199,6 @@ namespace Shared.Data
                     "text_message_requires_body_chk",
                     "type <> 'text' OR (body IS NOT NULL AND btrim(body) <> '')"));
 
-                // Índices
                 entity.HasIndex(e => new { e.ConversationId, e.CreatedAt })
                     .IsDescending(false, true)
                     .HasDatabaseName("idx_message_conversation_created_at");
@@ -231,9 +210,6 @@ namespace Shared.Data
                     .HasDatabaseName("idx_message_sender_user_id");
             });
 
-            // =========================================================
-            // MESSAGE ATTACHMENT CONFIGURATIONS
-            // =========================================================
             modelBuilder.Entity<MessageAttachment>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -255,19 +231,14 @@ namespace Shared.Data
                     .HasForeignKey(e => e.MessageId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Constraints
                 entity.ToTable(t => t.HasCheckConstraint(
                     "attachment_size_positive_chk",
                     "size_bytes > 0"));
 
-                // Índices
                 entity.HasIndex(e => e.MessageId)
                     .HasDatabaseName("idx_message_attachment_message_id");
             });
 
-            // =========================================================
-            // DIRECT MESSAGE KEY CONFIGURATIONS
-            // =========================================================
             modelBuilder.Entity<DirectMessageKey>(entity =>
             {
                 entity.HasKey(e => e.ConversationId);
@@ -283,19 +254,41 @@ namespace Shared.Data
                     .HasForeignKey<DirectMessageKey>(d => d.ConversationId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Constraints
                 entity.ToTable(t => t.HasCheckConstraint(
                     "dm_pair_key_not_empty_chk",
                     "btrim(user_pair_key) <> ''"));
             });
 
-            // Triggers equivalentes (se pueden ejecutar en migración)
+            modelBuilder.Entity<FriendRequest>(entity =>
+            {
+                entity.ToTable("friend_request", "chat");
+
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.SenderUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.SenderUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.ReceiverUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.ReceiverUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => new { e.SenderUserId, e.ReceiverUserId })
+                    .IsUnique()
+                    .HasDatabaseName("ix_friend_request_unique_pair");
+
+                entity.HasIndex(e => e.Status)
+                    .HasDatabaseName("ix_friend_request_status");
+
+                entity.Property(e => e.Message)
+                    .HasMaxLength(500);
+            });
         }
 
-        // Método para ejecutar los triggers en la migración
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            // Actualizar UpdatedAt automáticamente
             var entries = ChangeTracker.Entries()
                 .Where(e => e.Entity is User or Conversation or ConversationMember or Message
                             && e.State == EntityState.Modified);
@@ -334,16 +327,13 @@ namespace Shared.Data
         {
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
             {
-                // Convertir nombres de tablas a snake_case
                 entity.SetTableName(ToSnakeCase(entity.GetTableName()));
 
-                // Convertir nombres de columnas a snake_case
                 foreach (var property in entity.GetProperties())
                 {
                     property.SetColumnName(ToSnakeCase(property.GetColumnName()));
                 }
 
-                // Convertir nombres de claves foráneas a snake_case
                 foreach (var key in entity.GetForeignKeys())
                 {
                     key.SetConstraintName(ToSnakeCase(key.GetConstraintName()));

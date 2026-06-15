@@ -4,7 +4,12 @@ import { useState, type FormEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/UI/Button";
 import Card, { CardBody, CardFooter, CardHeader } from "@/components/UI/Card";
-import Form, { FormField, TextBox, DateTimePicker, Toggle } from "@/components/UI/Form";
+import Form, {
+  FormField,
+  TextBox,
+  DateTimePicker,
+  Toggle,
+} from "@/components/UI/Form";
 import LinkButton from "@/components/UI/LinkButton";
 import Image from "next/image";
 
@@ -150,11 +155,7 @@ export default function RegisterPage() {
               <p className="text-sm text-accent font-medium">{error}</p>
             )}
 
-            <Button
-              type="submit"
-              text="Registrarse"
-              isLoading={isSubmitting}
-            />
+            <Button type="submit" text="Registrarse" isLoading={isSubmitting} />
           </Form>
         </CardBody>
         <CardFooter>

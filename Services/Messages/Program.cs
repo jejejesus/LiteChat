@@ -116,6 +116,7 @@ if (app.Environment.IsDevelopment())
 
 // Middleware de manejo de errores
 app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseCors();
 
