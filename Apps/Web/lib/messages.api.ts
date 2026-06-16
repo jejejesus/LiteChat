@@ -34,6 +34,31 @@ export interface Attachment {
   sizeBytes: number;
 }
 
+export interface UserDTO {
+  id: string;
+  name: string;
+  firstSurname: string;
+  secondSurname: string | null;
+  surnameFirst: boolean;
+  avatarUrl: string | null;
+  status: string;
+  fullName: string;
+}
+
+export interface FriendRequestDTO {
+  id: string;
+  senderUserId: string;
+  senderName: string;
+  senderAvatarUrl: string | null;
+  receiverUserId: string;
+  receiverName: string;
+  receiverAvatarUrl: string | null;
+  status: "Pending" | "Accepted" | "Rejected" | "Blocked" | "Cancelled";
+  message: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+}
+
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("auth_token");
@@ -100,4 +125,71 @@ export async function markAsRead(conversationId: string): Promise<void> {
   await apiFetch(`/conversations/${conversationId}/read`, {
     method: "POST",
   });
+}
+
+async function friendsFetch<T>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${MESSAGES_API_URL}/api/friends${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    let message = `HTTP ${res.status}`;
+    try {
+      const parsed = JSON.parse(body);
+      message = parsed.error || message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message);
+  }
+
+  const text = await res.text();
+  return text ? JSON.parse(text) : (undefined as unknown as T);
+}
+
+export async function searchUsers(query: string): Promise<UserDTO[]> {
+  return friendsFetch<UserDTO[]>("/search", {
+    method: "POST",
+    body: JSON.stringify({ query }),
+  });
+}
+
+export async function sendFriendRequest(
+  receiverUserId: string,
+  message?: string,
+): Promise<FriendRequestDTO> {
+  return friendsFetch<FriendRequestDTO>("/requests", {
+    method: "POST",
+    body: JSON.stringify({ receiverUserId, message: message ?? null }),
+  });
+}
+
+export async function getPendingFriendRequests(): Promise<FriendRequestDTO[]> {
+  return friendsFetch<FriendRequestDTO[]>("/requests/pending");
+}
+
+export async function respondToFriendRequest(
+  requestId: string,
+  status: "Accepted" | "Rejected",
+): Promise<FriendRequestDTO> {
+  return friendsFetch<FriendRequestDTO>(`/requests/${requestId}/respond`, {
+    method: "PUT",
+    body: JSON.stringify({ requestId, status }),
+  });
+}
+
+export async function getFriendsList(): Promise<UserDTO[]> {
+  return friendsFetch<UserDTO[]>("/list");
 }
