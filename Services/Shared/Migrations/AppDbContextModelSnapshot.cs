@@ -17,7 +17,7 @@ namespace Shared.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.16")
+                .HasAnnotation("ProductVersion", "9.0.17")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -253,6 +253,52 @@ namespace Shared.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Shared.Entities.Chat.FriendRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("message");
+
+                    b.Property<Guid>("ReceiverUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("receiver_user_id");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("responded_at");
+
+                    b.Property<Guid>("SenderUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sender_user_id");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiverUserId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_friend_request_status");
+
+                    b.HasIndex("SenderUserId", "ReceiverUserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_friend_request_unique_pair");
+
+                    b.ToTable("friend_request", "chat");
+                });
+
             modelBuilder.Entity("Shared.Entities.Chat.Message", b =>
                 {
                     b.Property<Guid>("Id")
@@ -421,6 +467,27 @@ namespace Shared.Migrations
                         .HasConstraintName("fk_direct_message_keys_conversations_conversation_id");
 
                     b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("Shared.Entities.Chat.FriendRequest", b =>
+                {
+                    b.HasOne("Shared.Entities.Auth.User", "ReceiverUser")
+                        .WithMany()
+                        .HasForeignKey("ReceiverUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_friend_requests_users_receiver_user_id");
+
+                    b.HasOne("Shared.Entities.Auth.User", "SenderUser")
+                        .WithMany()
+                        .HasForeignKey("SenderUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_friend_requests_users_sender_user_id");
+
+                    b.Navigation("ReceiverUser");
+
+                    b.Navigation("SenderUser");
                 });
 
             modelBuilder.Entity("Shared.Entities.Chat.Message", b =>

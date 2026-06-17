@@ -25,7 +25,11 @@ interface MenuProps {
   onViewChange: (view: "chats" | "friends") => void;
 }
 
-export default function Menus({ children, activeView, onViewChange }: MenuProps) {
+export default function Menus({
+  children,
+  activeView,
+  onViewChange,
+}: MenuProps) {
   const { user, logout } = useAuth();
 
   const navItems = [
@@ -62,7 +66,7 @@ export default function Menus({ children, activeView, onViewChange }: MenuProps)
         </div>
       </nav>
       <div className="flex flex-1 min-h-0">
-        <aside className="w-64 flex flex-col bg-zinc-50 border-r border-zinc-200">
+        <aside className="w-64 flex flex-col">
           <nav className="flex flex-col p-2 gap-1">
             {navItems.map(({ key, label, icon }) => (
               <button

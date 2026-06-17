@@ -2,10 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  Message01Icon,
-  Loading03Icon,
-} from "@hugeicons/core-free-icons";
+import { Message01Icon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { getUserConversations, type Conversation } from "@/lib/messages.api";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -28,8 +25,8 @@ export default function ChatList({ selectedId, onSelect }: ChatListProps) {
     try {
       const data = await getUserConversations();
       setConversations(data);
-    } catch {
-      console.error("Error al cargar conversaciones");
+    } catch (error) {
+      console.log(error);
     } finally {
       setLoading(false);
     }
@@ -45,7 +42,11 @@ export default function ChatList({ selectedId, onSelect }: ChatListProps) {
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <HugeiconsIcon icon={Loading03Icon} className="animate-spin text-primary" size={24} />
+            <HugeiconsIcon
+              icon={Loading03Icon}
+              className="animate-spin text-primary"
+              size={24}
+            />
           </div>
         ) : conversations.length === 0 ? (
           <p className="text-sm text-zinc-400 text-center py-8">
@@ -57,11 +58,17 @@ export default function ChatList({ selectedId, onSelect }: ChatListProps) {
               key={conv.id}
               onClick={() => onSelect(conv)}
               className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors hover:bg-zinc-100 cursor-pointer ${
-                selectedId === conv.id ? "bg-primary/10 border-l-3 border-primary" : ""
+                selectedId === conv.id
+                  ? "bg-primary/10 border-l-3 border-primary"
+                  : ""
               }`}
             >
               <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">
-                <HugeiconsIcon icon={Message01Icon} size={18} className="text-secondary" />
+                <HugeiconsIcon
+                  icon={Message01Icon}
+                  size={18}
+                  className="text-secondary"
+                />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
@@ -70,7 +77,9 @@ export default function ChatList({ selectedId, onSelect }: ChatListProps) {
                   </span>
                   <span className="text-xs text-zinc-400 shrink-0">
                     {conv.lastMessage
-                      ? new Date(conv.lastMessage.createdAt).toLocaleDateString()
+                      ? new Date(
+                          conv.lastMessage.createdAt,
+                        ).toLocaleDateString()
                       : ""}
                   </span>
                 </div>

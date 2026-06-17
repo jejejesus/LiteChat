@@ -29,7 +29,14 @@ namespace Messages.Services
                 {
                     Id = cm.Conversation.Id,
                     Type = cm.Conversation.Type,
-                    Name = cm.Conversation.Name ?? GetConversationName(cm.Conversation, userId),
+                    Name = cm.Conversation.Name
+                        ?? (cm.Conversation.Type == ConversationType.direct_message
+                            ? cm.Conversation.Members
+                                .Where(m => m.UserId != userId)
+                                .Select(m => m.User.Name + " " + m.User.FirstSurname)
+                                .FirstOrDefault()
+                            : null)
+                        ?? "Sin nombre",
                     IconUrl = cm.Conversation.IconUrl,
                     Description = cm.Conversation.Description,
                     UnreadCount = _context.Messages.Count(m =>
@@ -173,24 +180,7 @@ namespace Messages.Services
             }
         }
 
-        private string GetConversationName(Conversation conversation, Guid userId)
-        {
-            // Para DMs, obtener el nombre del otro participante
-            if (conversation.Type == ConversationType.direct_message)
-            {
-                var otherMember = _context.ConversationMembers
-                    .Where(cm => cm.ConversationId == conversation.Id && cm.UserId != userId)
-                    .Select(cm => cm.User)
-                    .FirstOrDefault();
-
-                if (otherMember != null)
-                    return $"{otherMember.Name} {otherMember.FirstSurname}";
-            }
-
-            return conversation.Name ?? "Sin nombre";
-        }
-
-    public async Task<FriendRequestDTO> SendFriendRequestAsync(Guid senderUserId, SendFriendRequestRequest request)
+        public async Task<FriendRequestDTO> SendFriendRequestAsync(Guid senderUserId, SendFriendRequestRequest request)
         {
             // No enviarse a sí mismo
             if (senderUserId == request.ReceiverUserId)
@@ -233,7 +223,7 @@ namespace Messages.Services
             _context.FriendRequests.Add(friendRequest);
             await _context.SaveChangesAsync();
 
-            return await MapToFriendRequestDto(friendRequest);
+            return MapToFriendRequestDto(friendRequest);
         }
 
         public async Task<List<FriendRequestDTO>> GetPendingFriendRequestsAsync(Guid userId)
@@ -241,10 +231,11 @@ namespace Messages.Services
             var requests = await _context.FriendRequests
                 .Where(r => r.ReceiverUserId == userId && r.Status == FriendRequestStatus.Pending)
                 .Include(r => r.SenderUser)
+                .Include(r => r.ReceiverUser)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
 
-            return requests.Select(r => MapToFriendRequestDto(r).Result).ToList();
+            return requests.Select(MapToFriendRequestDto).ToList();
         }
 
         public async Task<FriendRequestDTO> RespondToFriendRequestAsync(Guid userId, RespondFriendRequestRequest request)
@@ -271,7 +262,7 @@ namespace Messages.Services
                 await CreateDirectConversationAsync(friendRequest.SenderUserId, friendRequest.ReceiverUserId);
             }
 
-            return await MapToFriendRequestDto(friendRequest);
+            return MapToFriendRequestDto(friendRequest);
         }
 
         public async Task<ConversationDTO> CreateDirectConversationAsync(Guid userId1, Guid userId2)
@@ -348,7 +339,7 @@ namespace Messages.Services
         }
 
         // Métodos auxiliares privados
-        private async Task<FriendRequestDTO> MapToFriendRequestDto(FriendRequest request)
+        private FriendRequestDTO MapToFriendRequestDto(FriendRequest request)
         {
             return new FriendRequestDTO
             {
