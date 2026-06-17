@@ -2,6 +2,7 @@
 
 import Menu from "@/components/UI/Menu";
 import { NavProvider, useNav } from "@/contexts/NavContext";
+import { SignalRProvider } from "@/contexts/SignalRContext";
 
 function ChatLayoutInner({ children }: { children: React.ReactNode }) {
   const { activeView, setActiveView } = useNav();
@@ -19,7 +20,9 @@ export default function ChatLayout({
 }>) {
   return (
     <NavProvider>
-      <ChatLayoutInner>{children}</ChatLayoutInner>
+      <SignalRProvider>
+        <ChatLayoutInner>{children}</ChatLayoutInner>
+      </SignalRProvider>
     </NavProvider>
   );
 }

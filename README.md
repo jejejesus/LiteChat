@@ -20,7 +20,11 @@ Una aplicación de chat en tiempo real construida como proyecto de práctica, ut
 - [x] Conversaciones individuales y grupales
 - [x] Mensajes con diferentes tipos (texto, imágenes, archivos adjuntos)
 - [x] Roles de miembros en conversaciones (owner, admin, member)
-- [ ] Chats en tiempo real (en desarrollo)
+- [x] Chats en tiempo real con SignalR
+- [x] Indicador de escritura ("escribiendo...")
+- [x] Notificaciones en tiempo real de solicitudes de amistad
+- [x] Marcado de mensajes como leídos
+- [x] Reconexión automática de WebSocket
 
 ## Requisitos
 
@@ -40,28 +44,29 @@ cd litechat
 
 ### 2. Configurar la base de datos
 
-Ejecuta PostgreSQL y crea las bases de datos necesarias. Configura las cadenas de conexión en los archivos `appsettings.json` de cada servicio.
+Ejecuta PostgreSQL y crea las bases de datos necesarias. Configura las cadenas de conexión en los archivos `appsettings.Development.json` de cada servicio.
 
-Ejemplo para `Services/Auth/appsettings.json`:
+Ejemplo para `Services/Auth/appsettings.Development.json`:
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=litechat;Username=postgres;Password=tu_password"
+    "DefaultConnection": "Host=localhost;Database=LiteChat;Username=postgres;Password=tu_password"
   },
   "Jwt": {
     "Key": "tu_clave_secreta_super_segura",
-    "Issuer": "LiteChat",
-    "Audience": "LiteChat"
+    "Issuer": "LiteChatAuthAPI",
+    "Audience": "LiteChatClient",
+    "ExpiryHours": 24
   }
 }
 ```
 
-El servicio de Messages usa la misma base de datos compartida y la misma configuración JWT (clave, issuer, audience deben coincidir para validar los tokens).
+Todos los servicios comparten la misma base de datos, la misma clave JWT y los mismos valores de issuer/audience.
 
 ### 3. Ejecutar migraciones
 
-Ambos servicios comparten el mismo `AppDbContext` desde `Services/Shared`, por lo que las migraciones se administran desde Auth:
+Todos los servicios comparten el mismo `AppDbContext` desde `Services/Shared`, por lo que las migraciones se administran desde Auth:
 
 ```bash
 cd Services/Auth
@@ -84,11 +89,18 @@ cd Services/Messages
 dotnet run
 ```
 
+```bash
+# Terminal 3 — Realtime Service (SignalR)
+cd Services/Realtime
+dotnet run
+```
+
 Puertos:
 | Servicio   | HTTP    | HTTPS   | Swagger              |
 |------------|---------|---------|----------------------|
-| Auth       | `5004`  | `5005`  | `/swagger`           |
-| Messages   | `5006`  | `5007`  | `/swagger`           |
+| Auth       | `5189`  | `7189`  | `/swagger`           |
+| Messages   | `5190`  | `7190`  | `/swagger`           |
+| Realtime   | `5191`  | `7191`  | — (SignalR hub)      |
 
 ### 5. Iniciar el frontend
 
@@ -110,9 +122,37 @@ El flujo de autenticación conecta el frontend (Next.js) con el backend (.NET) m
 4. **Protección de rutas** — Un `middleware.ts` de Next.js lee la cookie y redirige a `/auth/login` si no hay sesión, o a `/` si ya hay sesión activa
 5. **Logout** — Elimina el token de `localStorage` y la cookie, y redirige al login
 
+## Tiempo real con SignalR
+
+El servicio **Realtime** (`/hubs/chat`) maneja toda la comunicación en tiempo real vía WebSocket.
+
+### Eventos del hub
+
+**Cliente → Servidor:**
+| Método              | Parámetros                                    | Descripción                         |
+|---------------------|-----------------------------------------------|-------------------------------------|
+| `JoinConversation`  | `conversationId`                              | Unirse al grupo de una conversación |
+| `LeaveConversation` | `conversationId`                              | Abandonar el grupo                  |
+| `SendMessage`       | `{ conversationId, body, type?, parentMessageId? }` | Enviar un mensaje            |
+| `Typing`            | `{ conversationId, isTyping }`                | Indicar que se está escribiendo     |
+| `MarkAsRead`        | `{ conversationId }`                          | Marcar mensajes como leídos         |
+
+**Servidor → Cliente:**
+| Evento                  | Payload                                            | Descripción                         |
+|-------------------------|----------------------------------------------------|-------------------------------------|
+| `MessageReceived`       | `MessagePayload`                                   | Nuevo mensaje en una conversación   |
+| `UserTyping`            | `{ conversationId, userId, isTyping }`             | Usuario está escribiendo            |
+| `MessagesRead`          | `{ conversationId, userId }`                       | Mensajes leídos por un usuario      |
+| `FriendRequestReceived` | `FriendRequestPayload`                             | Nueva solicitud de amistad          |
+| `FriendRequestAccepted` | `FriendRequestPayload`                             | Solicitud de amistad aceptada       |
+
+### Reconexión automática
+
+El cliente SignalR se reconecta automáticamente con intervalos progresivos: 0s, 2s, 5s, 10s, 30s. El token JWT se envía vía `access_token` en la query string de la conexión WebSocket.
+
 ## API Endpoints
 
-### Auth Service (`http://localhost:5004`)
+### Auth Service (`https://localhost:7189`)
 
 | Método   | Ruta                    | Descripción                     | Auth |
 |----------|-------------------------|---------------------------------|------|
@@ -122,21 +162,26 @@ El flujo de autenticación conecta el frontend (Next.js) con el backend (.NET) m
 | GET      | `/api/users/me`         | Obtener perfil del usuario actual | ✅   |
 | GET      | `/api/users/search?q=`  | Buscar usuarios por nombre/email | ✅   |
 
-### Messages Service (`http://localhost:5006`)
+### Messages Service (`https://localhost:7190`)
 
-| Método | Ruta                                 | Descripción                          | Auth |
-|--------|--------------------------------------|--------------------------------------|------|
-| POST   | `/api/friends/request`               | Enviar solicitud de amistad          | ✅   |
-| POST   | `/api/friends/request/{id}/accept`   | Aceptar solicitud de amistad         | ✅   |
-| POST   | `/api/friends/request/{id}/reject`   | Rechazar solicitud de amistad        | ✅   |
-| GET    | `/api/friends/requests/pending`      | Listar solicitudes de amistad pendientes | ✅ |
-| GET    | `/api/friends/list`                  | Listar amigos aceptados              | ✅   |
-| POST   | `/api/chat/conversations`            | Crear o recuperar conversación individual | ✅ |
-| POST   | `/api/chat/conversations/group`      | Crear conversación grupal            | ✅   |
-| GET    | `/api/chat/conversations`            | Listar conversaciones del usuario    | ✅   |
-| GET    | `/api/chat/conversations/{id}/messages` | Obtener mensajes de una conversación | ✅ |
-| POST   | `/api/chat/conversations/{id}/messages` | Enviar mensaje                    | ✅   |
-| POST   | `/api/chat/conversations/{id}/members` | Agregar miembro a conversación     | ✅   |
+| Método | Ruta                                         | Descripción                              | Auth |
+|--------|----------------------------------------------|------------------------------------------|------|
+| POST   | `/api/chat/messages`                         | Enviar mensaje (fallback vía REST)        | ✅   |
+| GET    | `/api/chat/conversations`                    | Listar conversaciones del usuario        | ✅   |
+| GET    | `/api/chat/conversations/{id}/messages`      | Obtener mensajes históricos              | ✅   |
+| POST   | `/api/chat/conversations/{id}/read`          | Marcar mensajes como leídos              | ✅   |
+| POST   | `/api/friends/requests`                      | Enviar solicitud de amistad              | ✅   |
+| GET    | `/api/friends/requests/pending`              | Listar solicitudes pendientes            | ✅   |
+| PUT    | `/api/friends/requests/{id}/respond`         | Responder solicitud (aceptar/rechazar)   | ✅   |
+| GET    | `/api/friends/list`                          | Listar amigos aceptados                  | ✅   |
+| POST   | `/api/friends/search`                        | Buscar usuarios por nombre o email       | ✅   |
+
+### Realtime Service — Endpoints internos (`http://localhost:5191`)
+
+| Método | Ruta                                        | Descripción                                      |
+|--------|---------------------------------------------|--------------------------------------------------|
+| POST   | `/api/internal/notify/friend-request`        | Messages notifica nueva solicitud para broadcast |
+| POST   | `/api/internal/notify/friend-request-accepted` | Messages notifica solicitud aceptada           |
 
 ## Estructura del proyecto
 
@@ -148,74 +193,55 @@ LiteChat/
 │       │   ├── (chat)/           # Páginas del chat
 │       │   └── auth/             # Páginas de autenticación
 │       ├── components/
+│       │   ├── Chat/             # ChatList, ChatView
+│       │   ├── Friends/          # FriendsPanel
 │       │   └── UI/               # Componentes reutilizables
-│       ├── .env.local            # Variables de entorno (URL de la API)
-│       ├── lib/
-│       │   └── api.ts            # Cliente HTTP para la API de autenticación
 │       ├── contexts/
-│       │   └── AuthContext.tsx   # Contexto global de autenticación
-│       └── middleware.ts         # Protección de rutas del lado del servidor
+│       │   ├── AuthContext.tsx    # Estado de autenticación
+│       │   ├── SignalRContext.tsx # Conexión y métodos SignalR
+│       │   └── NavContext.tsx     # Navegación (chats/amigos)
+│       ├── lib/
+│       │   ├── auth.api.ts       # Cliente HTTP para Auth API
+│       │   ├── messages.api.ts   # Cliente HTTP para Messages API
+│       │   └── signalr.ts        # Servicio singleton SignalR
+│       ├── .env.local            # Variables de entorno
+│       └── middleware.ts         # Protección de rutas SSR
 ├── Services/
-│   ├── Auth/                     # Servicio de autenticación (puerto 5004)
-│   │   ├── Endpoints/            # Endpoints de la API
-│   │   │   ├── AuthEndpoints.cs
-│   │   │   └── UserEndpoints.cs
-│   │   ├── Services/             # Lógica de negocio
-│   │   │   └── AuthService.cs
-│   │   ├── DTOs/                 # Objetos de transferencia de datos
-│   │   │   └── AuthDtos.cs
-│   │   ├── Middleware/           # Middleware personalizado
-│   │   │   └── ErrorHandlingMiddleware.cs
+│   ├── Auth/                     # Servicio de autenticación (puerto 7189)
+│   │   ├── Endpoints/
+│   │   ├── Services/
+│   │   ├── DTOs/
+│   │   ├── Middleware/
 │   │   └── Program.cs
-│   ├── Messages/                 # Servicio de mensajería (puerto 5006)
-│   │   ├── Endpoints/            # Endpoints de la API
-│   │   │   └── ChatEndpoints.cs
-│   │   ├── Services/             # Lógica de negocio
-│   │   │   ├── ChatService.cs
-│   │   │   └── IChatService.cs
-│   │   ├── DTOs/                 # Objetos de transferencia de datos
-│   │   │   ├── ConversationDTO.cs
-│   │   │   ├── FriendRequestDTO.cs
-│   │   │   ├── MessageAttachmentDTO.cs
-│   │   │   └── MessageDTO.cs
-│   │   ├── Middleware/           # Middleware personalizado
-│   │   │   ├── ErrorHandlingMiddleware.cs
-│   │   │   └── ExceptionHandlingMiddleware.cs
+│   ├── Messages/                 # Servicio de mensajería (puerto 7190)
+│   │   ├── Endpoints/
+│   │   ├── Services/
+│   │   ├── DTOs/
+│   │   ├── Middleware/
+│   │   └── Program.cs
+│   ├── Realtime/                 # Servicio SignalR (puerto 7191)
+│   │   ├── Hubs/
+│   │   │   └── ChatHub.cs        # Hub principal de SignalR
+│   │   ├── Models/               # DTOs para comunicación del hub
+│   │   ├── Endpoints/            # Endpoints internos de notificación
 │   │   └── Program.cs
 │   └── Shared/                   # Librería compartida entre servicios
-│       ├── Data/
-│       │   ├── AppDbContext.cs               # DbContext compartido
-│       │   └── ModelBuilderExtensions.cs     # Configuración Fluent API
-│       ├── Entities/             # Entidades del dominio
-│       │   ├── User.cs
-│       │   ├── FriendRequest.cs
-│       │   ├── Conversation.cs
-│       │   ├── ConversationMember.cs
-│       │   ├── Message.cs
-│       │   ├── MessageAttachment.cs
-│       │   └── DirectMessageKey.cs
-│       └── Enums/                # Enumeraciones
-│           ├── UserStatus.cs
-│           ├── ConversationType.cs
-│           ├── FriendRequestStatus.cs
-│           ├── MemberRole.cs
-│           └── MessageType.cs
-├── Packages/                     # Paquetes compartidos (pendiente)
-├── package.json                  # Configuración del monorepo
-├── pnpm-workspace.yaml           # Workspace de pnpm
-└── README.md                     # Este archivo
+│       ├── Data/                 # AppDbContext, migraciones
+│       ├── Entities/             # User, Conversation, Message, etc.
+│       └── Enums/                # Enumeraciones del dominio
+├── package.json
+├── pnpm-workspace.yaml
+└── README.md
 ```
 
 ## Middleware
-
-Cada servicio implementa un pipeline de middleware para el manejo de errores:
 
 ### Auth Service
 1. **ErrorHandlingMiddleware** — Captura todas las excepciones no controladas y retorna una respuesta JSON genérica con código 500 (oculta detalles del error en producción).
 
 ### Messages Service
-1. **ErrorHandlingMiddleware** — Manejo genérico de excepciones (misma lógica que Auth).
-2. **ExceptionHandlingMiddleware** — Manejo específico de `NotFoundException` (404) y otras excepciones conocidas.
+1. **ErrorHandlingMiddleware** — Manejo genérico de excepciones.
+2. **ExceptionHandlingMiddleware** — Manejo específico de `NotFoundException` (404).
 
 ## Entidades del Dominio (Shared)
 

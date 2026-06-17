@@ -5,6 +5,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Message01Icon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { getUserConversations, type Conversation } from "@/lib/messages.api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSignalR } from "@/contexts/SignalRContext";
+import type { MessagePayload } from "@/lib/signalr";
 
 interface ChatListProps {
   selectedId?: string | null;
@@ -13,12 +15,57 @@ interface ChatListProps {
 
 export default function ChatList({ selectedId, onSelect }: ChatListProps) {
   const { user } = useAuth();
+  const signalr = useSignalR();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadConversations();
   }, []);
+
+  // ── Escuchar mensajes en tiempo real y actualizar la lista ──
+  useEffect(() => {
+    const handler = (payload: MessagePayload) => {
+      setConversations((prev) => {
+        const updated = prev.map((c) => {
+          if (c.id !== payload.conversationId) return c;
+
+          const unreadDelta = payload.senderUserId !== user?.userId ? 1 : 0;
+
+          return {
+            ...c,
+            lastMessage: {
+              id: payload.id,
+              conversationId: payload.conversationId,
+              senderUserId: payload.senderUserId,
+              senderName: payload.senderName,
+              senderAvatarUrl: payload.senderAvatarUrl,
+              type: payload.type as any,
+              body: payload.body,
+              createdAt: payload.createdAt,
+              editedAt: null,
+              isEdited: false,
+              attachments: [],
+            },
+            unreadCount: c.unreadCount + unreadDelta,
+            updatedAt: payload.createdAt,
+          };
+        });
+
+        // Reordenar: la conversación con mensaje nuevo al inicio
+        const idx = updated.findIndex((c) => c.id === payload.conversationId);
+        if (idx > 0) {
+          const [item] = updated.splice(idx, 1);
+          updated.unshift(item);
+        }
+
+        return updated;
+      });
+    };
+
+    signalr.on("MessageReceived", handler);
+    return () => signalr.off("MessageReceived", handler);
+  }, [user?.userId, signalr]);
 
   async function loadConversations() {
     setLoading(true);

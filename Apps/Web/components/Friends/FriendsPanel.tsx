@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   UserGroupIcon,
@@ -21,10 +21,13 @@ import {
   type UserDTO,
   type FriendRequestDTO,
 } from "@/lib/messages.api";
+import { useSignalR } from "@/contexts/SignalRContext";
+import type { FriendRequestPayload } from "@/lib/signalr";
 
 type Tab = "friends" | "pending" | "search";
 
 export default function FriendsPanel() {
+  const signalr = useSignalR();
   const [tab, setTab] = useState<Tab>("friends");
   const [friends, setFriends] = useState<UserDTO[]>([]);
   const [pending, setPending] = useState<FriendRequestDTO[]>([]);
@@ -41,6 +44,40 @@ export default function FriendsPanel() {
     if (tab === "friends") loadFriends();
     if (tab === "pending") loadPending();
   }, [tab]);
+
+  // ── Escuchar nuevas solicitudes de amistad en tiempo real ──
+  useEffect(() => {
+    const handler = (payload: FriendRequestPayload) => {
+      const newRequest: FriendRequestDTO = {
+        id: payload.requestId,
+        senderUserId: payload.senderUserId,
+        senderName: payload.senderName,
+        senderAvatarUrl: payload.senderAvatarUrl,
+        receiverUserId: "",
+        receiverName: "",
+        receiverAvatarUrl: null,
+        status: "Pending",
+        message: null,
+        createdAt: payload.createdAt,
+        respondedAt: null,
+      };
+      setPending((prev) => [newRequest, ...prev]);
+    };
+
+    signalr.on("FriendRequestReceived", handler);
+    return () => signalr.off("FriendRequestReceived", handler);
+  }, [signalr]);
+
+  // ── Escuchar solicitudes aceptadas ──
+  useEffect(() => {
+    const handler = () => {
+      loadFriends();
+      loadPending();
+    };
+
+    signalr.on("FriendRequestAccepted", handler);
+    return () => signalr.off("FriendRequestAccepted", handler);
+  }, [signalr]);
 
   async function loadFriends() {
     setLoadingFriends(true);
@@ -86,6 +123,7 @@ export default function FriendsPanel() {
     try {
       await sendFriendRequest(userId);
       setSearchResults((prev) => prev.filter((u) => u.id !== userId));
+      setError("Solicitud enviada");
     } catch (e: any) {
       setError(e.message);
     } finally {

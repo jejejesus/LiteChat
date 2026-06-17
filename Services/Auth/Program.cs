@@ -131,6 +131,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapAuthEndpoints();
-// app.MapUserEndpoints(); // Descomentar cuando los tengas
 
 app.Run();

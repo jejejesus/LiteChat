@@ -2,4 +2,5 @@
   <Project Path="Auth/Auth.csproj" Id="c301c6d7-2268-49ea-9073-01432400b4ca" />
   <Project Path="Messages/Messages.csproj" Id="a586c6b0-8c26-4008-a99a-8529a6dfe607" />
   <Project Path="Shared/Shared.csproj" Id="19ae9174-ceb0-404e-80ef-67f18ac0011e" />
+  <Project Path="Realtime/Realtime.csproj" Id="0bae517e-442a-4e11-966a-1237dcf6f6b8" />
 </Solution>

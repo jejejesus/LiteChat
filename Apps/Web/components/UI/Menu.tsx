@@ -9,10 +9,11 @@ import {
   Message01Icon,
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSignalR } from "@/contexts/SignalRContext";
 
 import SearchBox from "./SearchBox";
 import Button from "./Button";
@@ -31,10 +32,22 @@ export default function Menus({
   onViewChange,
 }: MenuProps) {
   const { user, logout } = useAuth();
+  const signalr = useSignalR();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const handler = () => setPendingCount((c) => c + 1);
+    signalr.on("FriendRequestReceived", handler);
+    return () => signalr.off("FriendRequestReceived", handler);
+  }, [signalr]);
+
+  useEffect(() => {
+    setPendingCount(0);
+  }, [activeView]);
 
   const navItems = [
     { key: "chats" as const, label: "Chats", icon: Message01Icon },
-    { key: "friends" as const, label: "Amigos", icon: UserGroupIcon },
+    { key: "friends" as const, label: "Amigos", icon: UserGroupIcon, badge: pendingCount },
   ];
 
   return (
@@ -68,7 +81,7 @@ export default function Menus({
       <div className="flex flex-1 min-h-0">
         <aside className="w-64 flex flex-col">
           <nav className="flex flex-col p-2 gap-1">
-            {navItems.map(({ key, label, icon }) => (
+            {navItems.map(({ key, label, icon, badge }) => (
               <button
                 key={key}
                 onClick={() => onViewChange(key)}
@@ -80,6 +93,11 @@ export default function Menus({
               >
                 <HugeiconsIcon icon={icon} size={20} />
                 {label}
+                {(badge ?? 0) > 0 && (
+                  <span className="ml-auto bg-accent text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-4 text-center">
+                    {badge}
+                  </span>
+                )}
               </button>
             ))}
           </nav>

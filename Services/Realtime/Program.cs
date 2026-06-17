@@ -1,24 +1,26 @@
 // ┌────────────────────────────────────────────────────────────────────┐
-// │ LiteChat - Messages Service                                       │
-// │ Microservicio de mensajería: conversaciones, mensajes, amigos.    │
+// │ LiteChat - Realtime Service                                       │
+// │ Microservicio SignalR: mensajería en tiempo real, typing, notif.  │
 // │                                                                   │
-// │ Endpoints:  /api/chat/*, /api/friends/*                           │
-// │ Middleware:  ErrorHandlingMiddleware → ExceptionHandlingMiddleware │
-// │ Puertos:     5006 (HTTP), 5007 (HTTPS)                            │
+// │ Hubs:      ChatHub     → /hubs/chat                               │
+// │ Internal:  /api/internal/notify/* (llamado por Messages)          │
+// │ Puertos:   5008 (HTTP), 5009 (HTTPS)                              │
 // └────────────────────────────────────────────────────────────────────┘
 
-using Messages.Endpoints;
-using Messages.Middleware;
-using Messages.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Realtime.Endpoints;
+using Realtime.Hubs;
 using Shared.Data;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Configurar CORS ──────────────────────────────────────────────────────
+// ── SignalR ────────────────────────────────────────────────────────────
+builder.Services.AddSignalR();
+
+// ── CORS ────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -33,15 +35,6 @@ builder.Services.AddCors(options =>
 // ── Base de datos ────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// ── Servicios ────────────────────────────────────────────────────────────
-builder.Services.AddScoped<IChatService, ChatService>();
-builder.Services.AddHttpClient("Realtime", client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["RealtimeService:BaseUrl"]
-        ?? "http://localhost:5191");
-    client.Timeout = TimeSpan.FromSeconds(3);
-});
 
 // ── JWT ──────────────────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new Exception("Invalid Jwt:Key");
@@ -62,7 +55,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
 
-        // Permite que SignalR reciba el token vía query string
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -82,60 +74,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// ── Swagger / OpenAPI ────────────────────────────────────────────────────
-builder.Services.AddOpenApi();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new() { Title = "LiteChat Messages API", Version = "v1" });
-
-    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-    {
-        Description = "JWT Authorization header usando Bearer scheme. Ejemplo: \"Bearer {token}\"",
-        Name = "Authorization",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-
-    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
-    {
-        {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-            {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
-
 var app = builder.Build();
 
 // ── Pipeline HTTP ─────────────────────────────────────────────────────────
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "LiteChat Messages API v1");
-        c.RoutePrefix = "swagger";
-    });
-}
-
-app.UseMiddleware<ErrorHandlingMiddleware>();
-app.UseMiddleware<ExceptionHandlingMiddleware>();
-
 app.UseCors();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapChatEndpoints();
+app.MapHub<ChatHub>("/hubs/chat");
+app.MapNotificationEndpoints();
 
 app.Run();
