@@ -5,20 +5,34 @@ using Shared.Enums.Chat;
 
 namespace Shared.Data
 {
+    /// <summary>Contexto de base de datos principal de LiteChat.</summary>
+    /// <remarks>
+    /// Configura las entidades del dominio, las convenciones de nomenclatura snake_case,
+    /// las conversiones de tipos (enums a string, DateOnly a DateTime) y las relaciones
+    /// entre entidades mediante Fluent API.
+    /// </remarks>
     public class AppDbContext : DbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
 
+        /// <summary>Usuarios registrados en el sistema.</summary>
         public DbSet<User> Users { get; set; }
+        /// <summary>Conversaciones (canales, DMs, grupos).</summary>
         public DbSet<Conversation> Conversations { get; set; }
+        /// <summary>Suscripciones de usuarios a conversaciones.</summary>
         public DbSet<ConversationMember> ConversationMembers { get; set; }
+        /// <summary>Mensajes enviados en las conversaciones.</summary>
         public DbSet<Message> Messages { get; set; }
+        /// <summary>Archivos adjuntos a los mensajes.</summary>
         public DbSet<MessageAttachment> MessageAttachments { get; set; }
+        /// <summary>Claves de cifrado para mensajes directos.</summary>
         public DbSet<DirectMessageKey> DirectMessageKeys { get; set; }
+        /// <summary>Solicitudes de amistad entre usuarios.</summary>
         public DbSet<FriendRequest> FriendRequests { get; set; }
 
+        /// <summary>Configura el modelo de entidades y sus relaciones mediante Fluent API.</summary>
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -287,6 +301,10 @@ namespace Shared.Data
             });
         }
 
+        /// <summary>
+        /// Actualiza automáticamente la propiedad <c>UpdatedAt</c> antes de guardar
+        /// cambios en entidades que implementan timestamps de modificación.
+        /// </summary>
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             var entries = ChangeTracker.Entries()
@@ -305,6 +323,7 @@ namespace Shared.Data
         }
     }
 
+    /// <summary>Convierte <c>DateOnly</c> a <c>DateTime</c> para almacenamiento en PostgreSQL.</summary>
     public class DateOnlyConverter : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateOnly, DateTime>
     {
         public DateOnlyConverter() : base(
@@ -313,6 +332,7 @@ namespace Shared.Data
         { }
     }
 
+    /// <summary>Comparador personalizado para <c>DateOnly</c> en EF Core.</summary>
     public class DateOnlyComparer : Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<DateOnly>
     {
         public DateOnlyComparer() : base(
@@ -321,8 +341,10 @@ namespace Shared.Data
         { }
     }
 
+    /// <summary>Extensiones para configurar convenciones de nomenclatura snake_case en EF Core.</summary>
     public static class ModelBuilderExtensions
     {
+        /// <summary>Convierte nombres de tablas, columnas y restricciones a snake_case.</summary>
         public static void UseSnakeCaseNaming(this ModelBuilder modelBuilder)
         {
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
@@ -341,6 +363,7 @@ namespace Shared.Data
             }
         }
 
+        /// <summary>Convierte un string PascalCase a snake_case.</summary>
         private static string ToSnakeCase(string input)
         {
             if (string.IsNullOrEmpty(input))

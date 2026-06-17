@@ -4,29 +4,26 @@ using Shared.Entities.Auth;
 
 namespace Auth.Endpoints
 {
+    /// <summary>Define los endpoints protegidos de gestión de usuarios.</summary>
     public static class UserEndpoints
     {
+        /// <summary>Mapea los endpoints del grupo <c>/api/users</c> (requieren autenticación).</summary>
         public static void MapUserEndpoints(this IEndpointRouteBuilder app)
         {
             var group = app.MapGroup("/api/users")
                 .WithTags("Users")
-                .RequireAuthorization(); // Todas requieren autenticación
+                .RequireAuthorization();
 
-            // GET /api/users/me
             group.MapGet("/me", GetCurrentUserAsync);
-
-            // GET /api/users/{id}
             group.MapGet("/{id:guid}", GetUserByIdAsync);
-
-            // PUT /api/users/me
             group.MapPut("/me", UpdateCurrentUserAsync);
         }
 
+        /// <summary>Obtiene los datos del usuario autenticado.</summary>
         private static async Task<IResult> GetCurrentUserAsync(
             HttpContext httpContext,
             AppDbContext dbContext)
         {
-            // Obtener userId del token (implementar después)
             var userId = Guid.NewGuid(); // Temporal
 
             var user = await dbContext.Users
@@ -52,6 +49,7 @@ namespace Auth.Endpoints
                 : Results.Ok(user);
         }
 
+        /// <summary>Obtiene un usuario por su identificador.</summary>
         private static async Task<IResult> GetUserByIdAsync(
             Guid id,
             AppDbContext dbContext)
@@ -76,11 +74,11 @@ namespace Auth.Endpoints
                 : Results.Ok(user);
         }
 
+        /// <summary>Actualiza los datos del usuario autenticado (pendiente de implementar).</summary>
         private static async Task<IResult> UpdateCurrentUserAsync(
             HttpContext httpContext,
             AppDbContext dbContext)
         {
-            // Implementar actualización
             await Task.CompletedTask;
             return Results.Ok(new { message = "Usuario actualizado" });
         }

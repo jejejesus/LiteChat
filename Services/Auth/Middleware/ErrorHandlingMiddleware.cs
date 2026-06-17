@@ -2,6 +2,10 @@
 
 namespace Auth.Middleware
 {
+    /// <summary>
+    /// Middleware global para capturar excepciones no controladas y devolver
+    /// respuestas JSON con el código HTTP adecuado.
+    /// </summary>
     public class ErrorHandlingMiddleware
     {
         private readonly RequestDelegate _next;
@@ -13,6 +17,7 @@ namespace Auth.Middleware
             _logger = logger;
         }
 
+        /// <summary>Ejecuta el pipeline y captura excepciones no controladas.</summary>
         public async Task InvokeAsync(HttpContext context)
         {
             try
@@ -26,6 +31,7 @@ namespace Auth.Middleware
             }
         }
 
+        /// <summary>Escribe la respuesta JSON con el código de estado correspondiente al tipo de excepción.</summary>
         private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
             context.Response.ContentType = "application/json";

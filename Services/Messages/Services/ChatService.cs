@@ -8,6 +8,7 @@ using Shared.Enums.Chat;
 
 namespace Messages.Services
 {
+    /// <summary>Implementa la lógica de negocio para mensajería y gestión de amigos.</summary>
     public class ChatService : IChatService
     {
         private readonly AppDbContext _context;
@@ -19,6 +20,7 @@ namespace Messages.Services
             _logger = logger;
         }
 
+        /// <summary>Obtiene las conversaciones activas del usuario, incluyendo el último mensaje y nombre para DMs.</summary>
         public async Task<List<ConversationDTO>> GetUserConversationsAsync(Guid userId)
         {
             var conversations = await _context.ConversationMembers
@@ -63,9 +65,9 @@ namespace Messages.Services
             return conversations;
         }
 
+        /// <summary>Obtiene los mensajes de una conversación con paginación, verificando que el usuario sea miembro.</summary>
         public async Task<List<MessageDTO>> GetConversationMessagesAsync(Guid conversationId, Guid userId, int page = 1, int pageSize = 50)
         {
-            // Verificar que el usuario es miembro de la conversación
             var isMember = await _context.ConversationMembers
                 .AnyAsync(cm => cm.ConversationId == conversationId && cm.UserId == userId && cm.LeftAt == null);
 
@@ -104,16 +106,15 @@ namespace Messages.Services
             return messages;
         }
 
+        /// <summary>Envía un mensaje a una conversación, validando membresía y tipo de contenido.</summary>
         public async Task<MessageDTO> SendMessageAsync(Guid userId, SendMessageRequest request)
         {
-            // Verificar membresía
             var member = await _context.ConversationMembers
                 .FirstOrDefaultAsync(cm => cm.ConversationId == request.ConversationId && cm.UserId == userId && cm.LeftAt == null);
 
             if (member == null)
                 throw new UnauthorizedAccessException("No eres miembro de esta conversación");
 
-            // Validar mensaje de texto
             if (request.Type == MessageType.text && string.IsNullOrWhiteSpace(request.Body))
                 throw new ArgumentException("El mensaje de texto no puede estar vacío");
 
@@ -131,7 +132,6 @@ namespace Messages.Services
 
             _context.Messages.Add(message);
 
-            // Actualizar la conversación
             var conversation = await _context.Conversations.FindAsync(request.ConversationId);
             if (conversation != null)
             {
@@ -140,7 +140,6 @@ namespace Messages.Services
 
             await _context.SaveChangesAsync();
 
-            // Cargar datos del usuario para la respuesta
             var user = await _context.Users.FindAsync(userId);
             var attachments = await _context.MessageAttachments
                 .Where(a => a.MessageId == message.Id)
@@ -168,6 +167,7 @@ namespace Messages.Services
             };
         }
 
+        /// <summary>Marca todos los mensajes de una conversación como leídos para el usuario.</summary>
         public async Task MarkMessagesAsReadAsync(Guid conversationId, Guid userId)
         {
             var member = await _context.ConversationMembers
@@ -180,18 +180,16 @@ namespace Messages.Services
             }
         }
 
+        /// <summary>Envía una solicitud de amistad con validaciones de duplicados y auto-solicitud.</summary>
         public async Task<FriendRequestDTO> SendFriendRequestAsync(Guid senderUserId, SendFriendRequestRequest request)
         {
-            // No enviarse a sí mismo
             if (senderUserId == request.ReceiverUserId)
                 throw new InvalidOperationException("No puedes enviarte una solicitud a ti mismo");
 
-            // Verificar que el receptor existe
             var receiver = await _context.Users.FindAsync(request.ReceiverUserId);
             if (receiver == null)
                 throw new NotFoundException("Usuario no encontrado");
 
-            // Verificar si ya existe una solicitud pendiente
             var existingRequest = await _context.FriendRequests
                 .FirstOrDefaultAsync(r =>
                     (r.SenderUserId == senderUserId && r.ReceiverUserId == request.ReceiverUserId && r.Status == FriendRequestStatus.Pending) ||
@@ -200,7 +198,6 @@ namespace Messages.Services
             if (existingRequest != null)
                 throw new InvalidOperationException("Ya existe una solicitud pendiente entre estos usuarios");
 
-            // Verificar si ya son amigos (tienen una conversación direct_message activa)
             var existingConversation = await _context.ConversationMembers
                 .Where(cm => cm.UserId == senderUserId && cm.LeftAt == null)
                 .Select(cm => cm.Conversation)
@@ -226,6 +223,7 @@ namespace Messages.Services
             return MapToFriendRequestDto(friendRequest);
         }
 
+        /// <summary>Obtiene las solicitudes de amistad pendientes donde el usuario es el destinatario.</summary>
         public async Task<List<FriendRequestDTO>> GetPendingFriendRequestsAsync(Guid userId)
         {
             var requests = await _context.FriendRequests
@@ -238,6 +236,7 @@ namespace Messages.Services
             return requests.Select(MapToFriendRequestDto).ToList();
         }
 
+        /// <summary>Responde a una solicitud de amistad. Si es aceptada, crea una conversación directa.</summary>
         public async Task<FriendRequestDTO> RespondToFriendRequestAsync(Guid userId, RespondFriendRequestRequest request)
         {
             var friendRequest = await _context.FriendRequests
@@ -256,7 +255,6 @@ namespace Messages.Services
 
             await _context.SaveChangesAsync();
 
-            // Si es aceptada, crear la conversación directa
             if (request.Status == FriendRequestStatus.Accepted)
             {
                 await CreateDirectConversationAsync(friendRequest.SenderUserId, friendRequest.ReceiverUserId);
@@ -265,9 +263,9 @@ namespace Messages.Services
             return MapToFriendRequestDto(friendRequest);
         }
 
+        /// <summary>Crea una conversación directa entre dos usuarios, o devuelve la existente.</summary>
         public async Task<ConversationDTO> CreateDirectConversationAsync(Guid userId1, Guid userId2)
         {
-            // Verificar si ya existe una conversación directa
             var existingConversation = await _context.ConversationMembers
                 .Where(cm => cm.UserId == userId1 && cm.LeftAt == null)
                 .Select(cm => cm.Conversation)
@@ -277,7 +275,6 @@ namespace Messages.Services
             if (existingConversation != null)
                 return await MapToConversationDto(existingConversation, userId1);
 
-            // Crear nueva conversación
             var conversation = new Conversation
             {
                 Id = Guid.NewGuid(),
@@ -289,7 +286,6 @@ namespace Messages.Services
 
             _context.Conversations.Add(conversation);
 
-            // Agregar ambos miembros
             var member1 = new ConversationMember
             {
                 ConversationId = conversation.Id,
@@ -312,6 +308,7 @@ namespace Messages.Services
             return await MapToConversationDto(conversation, userId1);
         }
 
+        /// <summary>Obtiene la lista de amigos del usuario (miembros de conversaciones DM activas).</summary>
         public async Task<List<UserDTO>> GetUserFriendsAsync(Guid userId)
         {
             var friends = await _context.ConversationMembers
@@ -338,7 +335,9 @@ namespace Messages.Services
             return friends;
         }
 
-        // Métodos auxiliares privados
+        // ── Métodos auxiliares privados ────────────────────────────────────
+
+        /// <summary>Mapea una entidad <c>FriendRequest</c> a su DTO.</summary>
         private FriendRequestDTO MapToFriendRequestDto(FriendRequest request)
         {
             return new FriendRequestDTO
@@ -357,6 +356,7 @@ namespace Messages.Services
             };
         }
 
+        /// <summary>Mapea una entidad <c>Conversation</c> a su DTO, resolviendo el nombre para DMs.</summary>
         private async Task<ConversationDTO> MapToConversationDto(Conversation conversation, Guid currentUserId)
         {
             return new ConversationDTO
@@ -378,6 +378,7 @@ namespace Messages.Services
             };
         }
 
+        /// <summary>Obtiene el nombre completo del usuario según la preferencia de orden.</summary>
         private string GetFullName(User? user)
         {
             if (user == null) return string.Empty;
@@ -387,6 +388,7 @@ namespace Messages.Services
                 : $"{user.Name} {user.FirstSurname} {user.SecondSurname}".Trim();
         }
 
+        /// <summary>Obtiene el nombre del otro participante en una conversación directa.</summary>
         private string GetOtherMemberName(Guid conversationId, Guid currentUserId)
         {
             var otherMember = _context.ConversationMembers

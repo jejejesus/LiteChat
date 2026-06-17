@@ -3,14 +3,15 @@ using Auth.Services;
 
 namespace Auth.Endpoints
 {
+    /// <summary>Define los endpoints públicos de autenticación (registro, login, logout, verificación).</summary>
     public static class AuthEndpoints
     {
+        /// <summary>Mapea los endpoints del grupo <c>/api/auth</c>.</summary>
         public static void MapAuthEndpoints(this IEndpointRouteBuilder app)
         {
             var group = app.MapGroup("/api/auth")
                 .WithTags("Authentication");
 
-            // POST /api/auth/register
             group.MapPost("/register", RegisterAsync)
                 .WithName("RegisterUser")
                 .WithDescription("Registra un nuevo usuario")
@@ -19,7 +20,6 @@ namespace Auth.Endpoints
                 .ProducesProblem(StatusCodes.Status409Conflict)
                 .AllowAnonymous();
 
-            // POST /api/auth/login
             group.MapPost("/login", LoginAsync)
                 .WithName("LoginUser")
                 .WithDescription("Autentica un usuario existente")
@@ -28,19 +28,18 @@ namespace Auth.Endpoints
                 .ProducesProblem(StatusCodes.Status401Unauthorized)
                 .AllowAnonymous();
 
-            // POST /api/auth/logout
             group.MapPost("/logout", LogoutAsync)
                 .WithName("LogoutUser")
                 .WithDescription("Cierra la sesión del usuario")
                 .RequireAuthorization();
 
-            // GET /api/auth/verify
             group.MapGet("/verify", VerifyAsync)
                 .WithName("VerifyToken")
                 .WithDescription("Verifica si el token es válido")
                 .RequireAuthorization();
         }
 
+        /// <summary>Registra un nuevo usuario y devuelve un JWT.</summary>
         private static async Task<IResult> RegisterAsync(
             RegisterRequest request,
             IAuthService authService)
@@ -60,6 +59,7 @@ namespace Auth.Endpoints
             }
         }
 
+        /// <summary>Inicia sesión con email y contraseña, devuelve un JWT.</summary>
         private static async Task<IResult> LoginAsync(
             LoginRequest request,
             IAuthService authService)
@@ -79,16 +79,16 @@ namespace Auth.Endpoints
             }
         }
 
+        /// <summary>Cierra la sesión del usuario (requiere invalidación del token en producción).</summary>
         private static async Task<IResult> LogoutAsync(HttpContext httpContext)
         {
-            // Aquí podrías invalidar el token si estás usando una blacklist
             await Task.CompletedTask;
             return Results.Ok(new { message = "Sesión cerrada exitosamente" });
         }
 
+        /// <summary>Verifica que el token JWT del usuario sea válido.</summary>
         private static async Task<IResult> VerifyAsync(HttpContext httpContext)
         {
-            // Verificar que el usuario está autenticado
             var user = httpContext.User;
             if (user.Identity?.IsAuthenticated == true)
             {

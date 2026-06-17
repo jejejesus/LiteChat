@@ -6,67 +6,61 @@ using System.Security.Claims;
 
 namespace Messages.Endpoints
 {
+    /// <summary>Define los endpoints de mensajería y gestión de amigos.</summary>
     public static class ChatEndpoints
     {
+        /// <summary>Mapea los endpoints de chat (<c>/api/chat</c>) y amigos (<c>/api/friends</c>).</summary>
         public static void MapChatEndpoints(this IEndpointRouteBuilder app)
         {
             var group = app.MapGroup("/api/chat")
                 .WithTags("Chat")
                 .RequireAuthorization();
 
-            // GET /api/chat/conversations
             group.MapGet("/conversations", GetUserConversationsAsync)
                 .WithName("GetUserConversations")
                 .Produces<List<ConversationDTO>>(StatusCodes.Status200OK);
 
-            // GET /api/chat/conversations/{conversationId}/messages
             group.MapGet("/conversations/{conversationId}/messages", GetConversationMessagesAsync)
                 .WithName("GetConversationMessages")
                 .Produces<List<MessageDTO>>(StatusCodes.Status200OK);
 
-            // POST /api/chat/messages
             group.MapPost("/messages", SendMessageAsync)
                 .WithName("SendMessage")
                 .Produces<MessageDTO>(StatusCodes.Status201Created)
                 .ProducesValidationProblem(StatusCodes.Status400BadRequest);
 
-            // POST /api/chat/conversations/{conversationId}/read
             group.MapPost("/conversations/{conversationId}/read", MarkMessagesAsReadAsync)
                 .WithName("MarkMessagesAsRead")
                 .Produces(StatusCodes.Status204NoContent);
 
-            // Friend Requests endpoints
+            // ── Amigos ────────────────────────────────────────────────
             var friendGroup = app.MapGroup("/api/friends")
                 .WithTags("Friends")
                 .RequireAuthorization();
 
-            // POST /api/friends/requests
             friendGroup.MapPost("/requests", SendFriendRequestAsync)
                 .WithName("SendFriendRequest")
                 .Produces<FriendRequestDTO>(StatusCodes.Status201Created);
 
-            // GET /api/friends/requests/pending
             friendGroup.MapGet("/requests/pending", GetPendingFriendRequestsAsync)
                 .WithName("GetPendingFriendRequests")
                 .Produces<List<FriendRequestDTO>>(StatusCodes.Status200OK);
 
-            // PUT /api/friends/requests/{requestId}/respond
             friendGroup.MapPut("/requests/{requestId}/respond", RespondToFriendRequestAsync)
                 .WithName("RespondToFriendRequest")
                 .Produces<FriendRequestDTO>(StatusCodes.Status200OK);
 
-            // GET /api/friends/list
             friendGroup.MapGet("/list", GetFriendsListAsync)
                 .WithName("GetFriendsList")
                 .Produces<List<UserDTO>>(StatusCodes.Status200OK);
 
-            // POST /api/friends/search
             friendGroup.MapPost("/search", SearchUsersAsync)
                 .WithName("SearchUsers")
                 .Produces<List<UserDTO>>(StatusCodes.Status200OK);
 
         }
 
+        /// <summary>Obtiene las conversaciones activas del usuario autenticado.</summary>
         private static async Task<IResult> GetUserConversationsAsync(
             ClaimsPrincipal user,
             IChatService chatService)
@@ -76,6 +70,7 @@ namespace Messages.Endpoints
             return Results.Ok(conversations);
         }
 
+        /// <summary>Obtiene los mensajes de una conversación con paginación.</summary>
         private static async Task<IResult> GetConversationMessagesAsync(
             Guid conversationId,
             int page,
@@ -88,6 +83,7 @@ namespace Messages.Endpoints
             return Results.Ok(messages);
         }
 
+        /// <summary>Envía un mensaje a una conversación.</summary>
         private static async Task<IResult> SendMessageAsync(
             SendMessageRequest request,
             ClaimsPrincipal user,
@@ -109,6 +105,7 @@ namespace Messages.Endpoints
             }
         }
 
+        /// <summary>Marca los mensajes de una conversación como leídos.</summary>
         private static async Task<IResult> MarkMessagesAsReadAsync(
             Guid conversationId,
             ClaimsPrincipal user,
@@ -119,6 +116,7 @@ namespace Messages.Endpoints
             return Results.NoContent();
         }
 
+        /// <summary>Extrae el userId del JWT del usuario autenticado.</summary>
         private static Guid GetUserId(ClaimsPrincipal user)
         {
             var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
@@ -130,6 +128,7 @@ namespace Messages.Endpoints
             return Guid.Parse(userIdClaim);
         }
 
+        /// <summary>Envía una solicitud de amistad a otro usuario.</summary>
         private static async Task<IResult> SendFriendRequestAsync(SendFriendRequestRequest request, ClaimsPrincipal user, IChatService chatService)
         {
             var userId = GetUserId(user);
@@ -137,6 +136,7 @@ namespace Messages.Endpoints
             return Results.Created($"/api/friends/requests/{result.Id}", result);
         }
 
+        /// <summary>Obtiene las solicitudes de amistad pendientes del usuario.</summary>
         private static async Task<IResult> GetPendingFriendRequestsAsync(
             ClaimsPrincipal user,
             IChatService chatService)
@@ -146,6 +146,7 @@ namespace Messages.Endpoints
             return Results.Ok(requests);
         }
 
+        /// <summary>Responde a una solicitud de amistad (aceptar/rechazar).</summary>
         private static async Task<IResult> RespondToFriendRequestAsync(
             Guid requestId,
             RespondFriendRequestRequest request,
@@ -160,6 +161,7 @@ namespace Messages.Endpoints
             return Results.Ok(result);
         }
 
+        /// <summary>Obtiene la lista de amigos del usuario autenticado.</summary>
         private static async Task<IResult> GetFriendsListAsync(
             ClaimsPrincipal user,
             IChatService chatService)
@@ -169,6 +171,7 @@ namespace Messages.Endpoints
             return Results.Ok(friends);
         }
 
+        /// <summary>Busca usuarios por nombre o email (excluye al usuario autenticado).</summary>
         private static async Task<IResult> SearchUsersAsync(
             SearchUsersRequest request,
             AppDbContext dbContext,

@@ -2,6 +2,10 @@
 
 namespace Messages.Middleware
 {
+    /// <summary>
+    /// Middleware global (outer) para capturar excepciones no controladas.
+    /// Envuelve a <c>ExceptionHandlingMiddleware</c>.
+    /// </summary>
     public class ErrorHandlingMiddleware
     {
         private readonly RequestDelegate _next;
@@ -13,6 +17,7 @@ namespace Messages.Middleware
             _logger = logger;
         }
 
+        /// <summary>Ejecuta el pipeline y captura cualquier excepción no controlada.</summary>
         public async Task InvokeAsync(HttpContext context)
         {
             try
@@ -26,6 +31,7 @@ namespace Messages.Middleware
             }
         }
 
+        /// <summary>Escribe la respuesta JSON con el código HTTP correspondiente al tipo de excepción.</summary>
         private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
             context.Response.ContentType = "application/json";

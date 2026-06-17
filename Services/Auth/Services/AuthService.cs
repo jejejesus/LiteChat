@@ -11,6 +11,7 @@ using System.Text;
 
 namespace Auth.Services
 {
+    /// <summary>Implementa la lógica de autenticación: registro, inicio de sesión y generación de JWT.</summary>
     public class AuthService : IAuthService
     {
         private readonly AppDbContext _context;
@@ -22,17 +23,15 @@ namespace Auth.Services
             _configuration = configuration;
         }
 
+        /// <summary>Registra un usuario tras validar que el email y teléfono sean únicos.</summary>
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
         {
-            // Verificar si el email ya existe
             if (await EmailExistsAsync(request.Email))
                 throw new InvalidOperationException("El email ya está registrado");
 
-            // Verificar si el teléfono ya existe
             if (await PhoneExistsAsync(request.PhoneNumber))
                 throw new InvalidOperationException("El número de teléfono ya está registrado");
 
-            // Crear el usuario
             var user = new User
             {
                 Email = request.Email,
@@ -49,7 +48,6 @@ namespace Auth.Services
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            // Generar token (JWT)
             var token = GenerateJwtToken(user);
 
             return new AuthResponse
@@ -62,6 +60,7 @@ namespace Auth.Services
             };
         }
 
+        /// <summary>Autentica a un usuario validando email y contraseña.</summary>
         public async Task<AuthResponse> LoginAsync(LoginRequest request)
         {
             var user = await _context.Users
@@ -95,6 +94,7 @@ namespace Auth.Services
             return await _context.Users.AnyAsync(u => u.PhoneNumber == phoneNumber);
         }
 
+        /// <summary>Calcula el hash SHA-256 de una contraseña.</summary>
         private string HashPassword(string password)
         {
             using var sha256 = SHA256.Create();
@@ -102,20 +102,20 @@ namespace Auth.Services
             return Convert.ToBase64String(hashedBytes);
         }
 
+        /// <summary>Verifica si una contraseña coincide con su hash.</summary>
         private bool VerifyPassword(string password, string hashedPassword)
         {
             return HashPassword(password) == hashedPassword;
         }
 
+        /// <summary>Genera un JWT con los claims del usuario.</summary>
         private string GenerateJwtToken(User user)
         {
-            // Obtener configuración JWT
             var jwtKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
             var jwtIssuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("JWT Issuer not configured");
             var jwtAudience = _configuration["Jwt:Audience"] ?? throw new InvalidOperationException("JWT Audience not configured");
             var jwtExpiryHours = _configuration.GetValue<int>("Jwt:ExpiryHours", 24);
 
-            // Crear claims (información del usuario)
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -128,20 +128,16 @@ namespace Auth.Services
                 new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
             };
 
-            // Agregar apellido segundo si existe
             if (!string.IsNullOrEmpty(user.SecondSurname))
             {
                 claims.Add(new Claim("second_surname", user.SecondSurname));
             }
 
-            // Agregar el nombre completo como claim
             claims.Add(new Claim("full_name", GetFullName(user)));
 
-            // Crear credenciales de firma
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            // Crear el token
             var token = new JwtSecurityToken(
                 issuer: jwtIssuer,
                 audience: jwtAudience,
@@ -150,10 +146,10 @@ namespace Auth.Services
                 signingCredentials: credentials
             );
 
-            // Serializar el token
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+        /// <summary>Obtiene el nombre completo según la preferencia de orden (apellido primero o nombre primero).</summary>
         private string GetFullName(User user)
         {
             var names = user.SurnameFirst

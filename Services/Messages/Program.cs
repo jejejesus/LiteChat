@@ -1,3 +1,12 @@
+// ┌────────────────────────────────────────────────────────────────────┐
+// │ LiteChat - Messages Service                                       │
+// │ Microservicio de mensajería: conversaciones, mensajes, amigos.    │
+// │                                                                   │
+// │ Endpoints:  /api/chat/*, /api/friends/*                           │
+// │ Middleware:  ErrorHandlingMiddleware → ExceptionHandlingMiddleware │
+// │ Puertos:     5006 (HTTP), 5007 (HTTPS)                            │
+// └────────────────────────────────────────────────────────────────────┘
+
 using Messages.Endpoints;
 using Messages.Middleware;
 using Messages.Services;
@@ -9,7 +18,7 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar CORS
+// ── Configurar CORS ──────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -21,14 +30,14 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Configurar DbContext con PostgreSQL
+// ── Base de datos ────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Configurar servicios
+// ── Servicios ────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IChatService, ChatService>();
 
-// Configurar JWT Authentication
+// ── JWT ──────────────────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new Exception("Invalid Jwt:Key");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? throw new Exception("Invalid Jwt:Issuer");
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? throw new Exception("Invalid Jwt:Audience");
@@ -47,7 +56,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
 
-        // Para SignalR y WebSockets
+        // Permite que SignalR reciba el token vía query string
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -67,14 +76,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// Add services to the container.
+// ── Swagger / OpenAPI ────────────────────────────────────────────────────
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "LiteChat Auth API", Version = "v1" });
+    c.SwaggerDoc("v1", new() { Title = "LiteChat Messages API", Version = "v1" });
 
-    // Configurar JWT en Swagger
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Description = "JWT Authorization header usando Bearer scheme. Ejemplo: \"Bearer {token}\"",
@@ -102,31 +110,26 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ── Pipeline HTTP ─────────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "LiteChat Auth API v1");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "LiteChat Messages API v1");
         c.RoutePrefix = "swagger";
     });
 }
 
-// Middleware de manejo de errores
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseCors();
-
 app.UseHttpsRedirection();
-
-// Autenticación y autorización
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Registrar los endpoints
 app.MapChatEndpoints();
 
 app.Run();

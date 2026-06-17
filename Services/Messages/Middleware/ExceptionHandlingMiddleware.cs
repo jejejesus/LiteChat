@@ -3,6 +3,10 @@ using System.Text.Json;
 
 namespace Messages.Middleware
 {
+    /// <summary>
+    /// Middleware específico (inner) para capturar y mapear excepciones conocidas
+    /// a respuestas HTTP estructuradas. Se ejecuta dentro de <c>ErrorHandlingMiddleware</c>.
+    /// </summary>
     public class ExceptionHandlingMiddleware
     {
         private readonly RequestDelegate _next;
@@ -14,6 +18,7 @@ namespace Messages.Middleware
             _logger = logger;
         }
 
+        /// <summary>Ejecuta el pipeline y captura excepciones específicas para devolver errores HTTP semánticos.</summary>
         public async Task InvokeAsync(HttpContext context)
         {
             try
@@ -46,6 +51,7 @@ namespace Messages.Middleware
             }
         }
 
+        /// <summary>Escribe una respuesta JSON con el mensaje de error.</summary>
         private static async Task WriteErrorResponse(HttpContext context, string message)
         {
             context.Response.ContentType = "application/json";
