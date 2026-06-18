@@ -20,8 +20,6 @@ interface ChatViewProps {
   conversation: Conversation;
 }
 
-let typingTimer: ReturnType<typeof setTimeout> | null = null;
-
 export default function ChatView({ conversation }: ChatViewProps) {
   const { user } = useAuth();
   const signalr = useSignalR();
@@ -29,15 +27,34 @@ export default function ChatView({ conversation }: ChatViewProps) {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map());
+  const [typingUsers, setTypingUsers] = useState<Map<string, string>>(
+    new Map(),
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
   const userIdRef = useRef(user?.userId);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  userIdRef.current = user?.userId;
+  useEffect(() => {
+    userIdRef.current = user?.userId;
+  }, [user?.userId]);
+
+  async function loadMessages() {
+    setLoading(true);
+    try {
+      const data = await getConversationMessages(conversation.id);
+      setMessages(data.slice().reverse());
+    } catch {
+      console.error("Error al cargar mensajes");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // ── Cargar mensajes históricos vía REST ──
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id]);
 
   // ── Unirse al grupo SignalR de la conversación ──
@@ -46,7 +63,7 @@ export default function ChatView({ conversation }: ChatViewProps) {
     return () => {
       signalr.leaveConversation(conversation.id);
     };
-  }, [conversation.id]);
+  }, [conversation.id, signalr]);
 
   // ── Escuchar mensajes en tiempo real ──
   useEffect(() => {
@@ -96,26 +113,14 @@ export default function ChatView({ conversation }: ChatViewProps) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function loadMessages() {
-    setLoading(true);
-    try {
-      const data = await getConversationMessages(conversation.id);
-      setMessages(data.reverse());
-    } catch {
-      console.error("Error al cargar mensajes");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleSend() {
     const body = text.trim();
     if (!body || sending) return;
 
     // Cancelar typing al enviar
-    if (typingTimer) {
-      clearTimeout(typingTimer);
-      typingTimer = null;
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = null;
       signalr.sendTyping(conversation.id, false);
     }
 
@@ -130,37 +135,43 @@ export default function ChatView({ conversation }: ChatViewProps) {
     }
   }
 
-  const handleTyping = useCallback((value: string) => {
-    setText(value);
+  const handleTyping = useCallback(
+    (value: string) => {
+      setText(value);
 
-    if (typingTimer) clearTimeout(typingTimer);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
 
-    signalr.sendTyping(conversation.id, true);
+      signalr.sendTyping(conversation.id, true);
 
-    typingTimer = setTimeout(() => {
-      signalr.sendTyping(conversation.id, false);
-      typingTimer = null;
-    }, 2000);
-  }, [conversation.id, signalr]);
+      typingTimerRef.current = setTimeout(() => {
+        signalr.sendTyping(conversation.id, false);
+        typingTimerRef.current = null;
+      }, 2000);
+    },
+    [conversation.id, signalr],
+  );
 
-  const typingEntries = Array.from(typingUsers.entries())
-    .filter(([id]) => id !== userIdRef.current);
+  const currentUserId = user?.userId;
+  const typingEntries = Array.from(typingUsers.entries()).filter(
+    ([id]) => id !== currentUserId,
+  );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col py-1 px-2 h-full">
       <div className="px-4 py-3 border-b border-zinc-200 bg-white">
         <h2 className="text-sm font-semibold text-foreground">
           {conversation.name}
         </h2>
-        {!signalr.connected && (
-          <p className="text-[10px] text-accent">Reconectando...</p>
-        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <HugeiconsIcon icon={Loading03Icon} className="animate-spin text-primary" size={24} />
+            <HugeiconsIcon
+              icon={Loading03Icon}
+              className="animate-spin text-primary"
+              size={24}
+            />
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
@@ -172,7 +183,7 @@ export default function ChatView({ conversation }: ChatViewProps) {
             <div
               key={msg.id}
               className={`flex items-start gap-2 ${
-                msg.senderUserId === userIdRef.current ? "flex-row-reverse" : ""
+                msg.senderUserId === currentUserId ? "flex-row-reverse" : ""
               }`}
             >
               <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center shrink-0 mt-0.5">
@@ -180,20 +191,28 @@ export default function ChatView({ conversation }: ChatViewProps) {
                   {msg.senderName.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <div className={`flex-1 min-w-0 ${msg.senderUserId === userIdRef.current ? "text-right" : ""}`}>
-                <div className={`flex items-baseline gap-2 ${msg.senderUserId === userIdRef.current ? "flex-row-reverse" : ""}`}>
+              <div
+                className={`flex-1 min-w-0 ${msg.senderUserId === currentUserId ? "text-right" : ""}`}
+              >
+                <div
+                  className={`flex items-baseline gap-2 ${msg.senderUserId === currentUserId ? "flex-row-reverse" : ""}`}
+                >
                   <span className="text-xs font-semibold text-foreground">
-                    {msg.senderUserId === userIdRef.current ? "Tú" : msg.senderName}
+                    {msg.senderUserId === currentUserId
+                      ? "Tú"
+                      : msg.senderName}
                   </span>
                   <span className="text-[10px] text-zinc-400">
                     {new Date(msg.createdAt).toLocaleString()}
                   </span>
                 </div>
-                <p className={`text-sm mt-0.5 inline-block px-3 py-1.5 rounded-2xl max-w-[80%] ${
-                  msg.senderUserId === userIdRef.current
-                    ? "bg-primary text-white rounded-br-md"
-                    : "bg-zinc-100 text-zinc-700 rounded-bl-md"
-                }`}>
+                <p
+                  className={`text-sm mt-0.5 inline-block px-3 py-1.5 rounded-2xl max-w-[80%] ${
+                    msg.senderUserId === currentUserId
+                      ? "bg-primary text-white rounded-br-md"
+                      : "bg-zinc-100 text-zinc-700 rounded-bl-md"
+                  }`}
+                >
                   {msg.body}
                 </p>
               </div>

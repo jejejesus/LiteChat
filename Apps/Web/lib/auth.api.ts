@@ -108,4 +108,21 @@ export async function verifyToken(): Promise<boolean> {
   }
 }
 
+export async function forgotPassword(email: string): Promise<void> {
+  await apiFetch("/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  await apiFetch("/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, newPassword }),
+  });
+}
+
 export { getToken, setToken };

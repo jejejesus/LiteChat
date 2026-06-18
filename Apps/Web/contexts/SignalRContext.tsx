@@ -31,6 +31,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) {
       signalr.disconnect();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setConnected(false);
       return;
     }
@@ -38,7 +39,9 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem("auth_token");
     if (!token) return;
 
-    signalr.connect(token).then(() => setConnected(true)).catch(() => {});
+    signalr.connect(token).then(() => setConnected(true)).catch((err) => {
+      console.error("SignalR connection failed:", err);
+    });
 
     const onState = (state: string) => {
       setConnected(state === "connected");
@@ -47,6 +50,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
     return () => {
       signalr.off("ConnectionState", onState);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.userId]);
 
   const joinConversation = useCallback(async (id: string) => {

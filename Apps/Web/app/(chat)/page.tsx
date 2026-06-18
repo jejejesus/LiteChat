@@ -14,12 +14,7 @@ export default function HomePage() {
   if (activeView === "friends") {
     return (
       <div className="flex flex-1 min-h-0">
-        <div className="w-80 border-r border-zinc-200 overflow-auto">
-          <FriendsPanel />
-        </div>
-        <div className="flex-1 p-2 m-1 overflow-auto flex items-center justify-center text-zinc-400 text-sm">
-          Selecciona un amigo para chatear
-        </div>
+        <FriendsPanel />
       </div>
     );
   }
@@ -27,10 +22,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-1 min-h-0">
       <div className="w-80 border-r border-zinc-200 overflow-auto">
-        <ChatList
-          selectedId={selectedConv?.id}
-          onSelect={setSelectedConv}
-        />
+        <ChatList selectedId={selectedConv?.id} onSelect={setSelectedConv} />
       </div>
       <div className="flex-1 overflow-auto">
         {selectedConv ? (

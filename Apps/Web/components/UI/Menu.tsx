@@ -26,7 +26,7 @@ interface MenuProps {
   onViewChange: (view: "chats" | "friends") => void;
 }
 
-export default function Menus({
+export default function Menu({
   children,
   activeView,
   onViewChange,
@@ -34,6 +34,7 @@ export default function Menus({
   const { user, logout } = useAuth();
   const signalr = useSignalR();
   const [pendingCount, setPendingCount] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     const handler = () => setPendingCount((c) => c + 1);
@@ -42,6 +43,7 @@ export default function Menus({
   }, [signalr]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPendingCount(0);
   }, [activeView]);
 
@@ -54,7 +56,7 @@ export default function Menus({
     <div className="flex flex-col h-screen bg-zinc-100">
       <nav className="flex h-14 justify-between px-1 py-2 align-middle">
         <div className="flex">
-          <button className="cursor-pointer">
+          <button className="cursor-pointer" onClick={() => setSidebarOpen((prev) => !prev)}>
             <HugeiconsIcon icon={Menu01Icon} className="my-2 mx-3" />
           </button>
           <Link href="/">
@@ -62,7 +64,7 @@ export default function Menus({
           </Link>
         </div>
         <div className="w-1/3">
-          <SearchBox className="w-full" />
+          <SearchBox className="w-full" onSearch={(q) => console.log("Search:", q)} />
         </div>
         <div className="flex items-center gap-1">
           <span className="text-sm text-zinc-500 font-medium mr-1">
@@ -79,7 +81,7 @@ export default function Menus({
         </div>
       </nav>
       <div className="flex flex-1 min-h-0">
-        <aside className="w-64 flex flex-col">
+        <aside className={`${sidebarOpen ? "w-64" : "w-0 overflow-hidden"} flex flex-col transition-all duration-300`}>
           <nav className="flex flex-col p-2 gap-1">
             {navItems.map(({ key, label, icon, badge }) => (
               <button

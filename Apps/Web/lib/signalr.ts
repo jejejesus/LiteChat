@@ -42,10 +42,12 @@ let connection: HubConnection | null = null;
 let currentToken: string | null = null;
 let startPromise: Promise<void> | null = null;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventHandler = (...args: any[]) => void;
 
 const listeners = new Map<string, Set<EventHandler>>();
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function notify(event: string, ...args: any[]) {
   listeners.get(event)?.forEach((h) => h(...args));
 }

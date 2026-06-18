@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Message01Icon, Loading03Icon } from "@hugeicons/core-free-icons";
-import { getUserConversations, type Conversation } from "@/lib/messages.api";
+import { getUserConversations, type Conversation, type Message } from "@/lib/messages.api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSignalR } from "@/contexts/SignalRContext";
 import type { MessagePayload } from "@/lib/signalr";
@@ -18,8 +18,24 @@ export default function ChatList({ selectedId, onSelect }: ChatListProps) {
   const signalr = useSignalR();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadConversations() {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getUserConversations();
+      setConversations(data);
+    } catch (err) {
+      console.error(err);
+      setError("Error al cargar conversaciones");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadConversations();
   }, []);
 
@@ -40,7 +56,7 @@ export default function ChatList({ selectedId, onSelect }: ChatListProps) {
               senderUserId: payload.senderUserId,
               senderName: payload.senderName,
               senderAvatarUrl: payload.senderAvatarUrl,
-              type: payload.type as any,
+              type: payload.type as Message["type"],
               body: payload.body,
               createdAt: payload.createdAt,
               editedAt: null,
@@ -67,26 +83,19 @@ export default function ChatList({ selectedId, onSelect }: ChatListProps) {
     return () => signalr.off("MessageReceived", handler);
   }, [user?.userId, signalr]);
 
-  async function loadConversations() {
-    setLoading(true);
-    try {
-      const data = await getUserConversations();
-      setConversations(data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col py-1 px-2 h-full">
       <div className="px-3 py-3 border-b border-zinc-200">
         <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider">
           Conversaciones
         </h2>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto py-1">
+        {error && (
+          <div className="px-3 py-2 bg-accent/10 text-accent text-xs text-center">
+            {error}
+          </div>
+        )}
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <HugeiconsIcon
@@ -104,10 +113,8 @@ export default function ChatList({ selectedId, onSelect }: ChatListProps) {
             <button
               key={conv.id}
               onClick={() => onSelect(conv)}
-              className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors hover:bg-zinc-100 cursor-pointer ${
-                selectedId === conv.id
-                  ? "bg-primary/10 border-l-3 border-primary"
-                  : ""
+              className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 transition-colors hover:bg-zinc-100 cursor-pointer ${
+                selectedId === conv.id ? "bg-primary/10" : ""
               }`}
             >
               <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">

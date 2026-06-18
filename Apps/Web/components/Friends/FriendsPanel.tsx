@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   UserGroupIcon,
@@ -9,7 +9,6 @@ import {
   CheckmarkCircle02Icon,
   Cancel01Icon,
   Loading03Icon,
-  Search01Icon,
   UserCircleIcon,
 } from "@hugeicons/core-free-icons";
 import {
@@ -23,6 +22,8 @@ import {
 } from "@/lib/messages.api";
 import { useSignalR } from "@/contexts/SignalRContext";
 import type { FriendRequestPayload } from "@/lib/signalr";
+import SegmentedControl from "@/components/UI/SegmentedControl";
+import SearchBox from "@/components/UI/SearchBox";
 
 type Tab = "friends" | "pending" | "search";
 
@@ -32,7 +33,6 @@ export default function FriendsPanel() {
   const [friends, setFriends] = useState<UserDTO[]>([]);
   const [pending, setPending] = useState<FriendRequestDTO[]>([]);
   const [searchResults, setSearchResults] = useState<UserDTO[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [loadingFriends, setLoadingFriends] = useState(true);
   const [loadingPending, setLoadingPending] = useState(true);
@@ -81,6 +81,7 @@ export default function FriendsPanel() {
 
   async function loadFriends() {
     setLoadingFriends(true);
+    setError(null);
     try {
       const data = await getFriendsList();
       setFriends(data);
@@ -93,6 +94,7 @@ export default function FriendsPanel() {
 
   async function loadPending() {
     setLoadingPending(true);
+    setError(null);
     try {
       const data = await getPendingFriendRequests();
       setPending(data);
@@ -103,12 +105,13 @@ export default function FriendsPanel() {
     }
   }
 
-  async function handleSearch() {
-    if (searchQuery.trim().length < 2) return;
+  async function handleSearch(query: string) {
+    const q = query.trim();
+    if (q.length < 2) return;
     setSearching(true);
     setError(null);
     try {
-      const data = await searchUsers(searchQuery.trim());
+      const data = await searchUsers(q);
       setSearchResults(data);
     } catch {
       setError("Error al buscar usuarios");
@@ -124,14 +127,17 @@ export default function FriendsPanel() {
       await sendFriendRequest(userId);
       setSearchResults((prev) => prev.filter((u) => u.id !== userId));
       setError("Solicitud enviada");
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al enviar solicitud");
     } finally {
       setSendingTo(null);
     }
   }
 
-  async function handleRespond(requestId: string, status: "Accepted" | "Rejected") {
+  async function handleRespond(
+    requestId: string,
+    status: "Accepted" | "Rejected",
+  ) {
     setResponding(requestId);
     setError(null);
     try {
@@ -145,35 +151,47 @@ export default function FriendsPanel() {
     }
   }
 
-  const tabs: { key: Tab; label: string; icon: any }[] = [
-    { key: "friends", label: "Amigos", icon: UserGroupIcon },
-    { key: "pending", label: "Solicitudes", icon: Notification01Icon },
-    { key: "search", label: "Buscar", icon: UserAdd01Icon },
-  ];
-
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col py-1 px-2 w-full">
       <div className="px-3 py-3 border-b border-zinc-200">
         <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider">
           Amigos
         </h2>
       </div>
 
-      <div className="flex border-b border-zinc-200">
-        {tabs.map(({ key, label, icon }) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium transition-colors cursor-pointer ${
-              tab === key
-                ? "text-primary border-b-2 border-primary"
-                : "text-zinc-400 hover:text-zinc-600"
-            }`}
-          >
-            <HugeiconsIcon icon={icon} size={14} />
-            {label}
-          </button>
-        ))}
+      <div className="px-1 py-2 border-b border-zinc-200">
+        <SegmentedControl
+          options={[
+            {
+              value: "friends",
+              label: (
+                <div className="flex text-sm gap-2 justify-center">
+                  <HugeiconsIcon icon={UserGroupIcon} size={20} /> Amigos
+                </div>
+              ),
+            },
+            {
+              value: "pending",
+              label: (
+                <div className="flex text-sm gap-2 justify-center">
+                  <HugeiconsIcon icon={Notification01Icon} size={20} />{" "}
+                  Solicitudes
+                </div>
+              ),
+            },
+            {
+              value: "search",
+              label: (
+                <div className="flex text-sm gap-2 justify-center">
+                  <HugeiconsIcon icon={UserAdd01Icon} size={20} /> Buscar
+                </div>
+              ),
+            },
+          ]}
+          value={tab}
+          onChange={setTab}
+          color="primary"
+        />
       </div>
 
       {error && (
@@ -182,12 +200,16 @@ export default function FriendsPanel() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto my-1">
         {tab === "friends" && (
           <>
             {loadingFriends ? (
               <div className="flex justify-center py-8">
-                <HugeiconsIcon icon={Loading03Icon} className="animate-spin text-primary" size={24} />
+                <HugeiconsIcon
+                  icon={Loading03Icon}
+                  className="animate-spin text-primary"
+                  size={24}
+                />
               </div>
             ) : friends.length === 0 ? (
               <div className="flex flex-col items-center py-8 text-zinc-400">
@@ -197,9 +219,16 @@ export default function FriendsPanel() {
               </div>
             ) : (
               friends.map((u) => (
-                <div key={u.id} className="flex items-center gap-2 px-3 py-2 hover:bg-zinc-50">
+                <div
+                  key={u.id}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-zinc-50"
+                >
                   <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">
-                    <HugeiconsIcon icon={UserCircleIcon} size={16} className="text-secondary" />
+                    <HugeiconsIcon
+                      icon={UserCircleIcon}
+                      size={16}
+                      className="text-secondary"
+                    />
                   </div>
                   <span className="text-sm text-foreground">{u.fullName}</span>
                 </div>
@@ -212,7 +241,11 @@ export default function FriendsPanel() {
           <>
             {loadingPending ? (
               <div className="flex justify-center py-8">
-                <HugeiconsIcon icon={Loading03Icon} className="animate-spin text-primary" size={24} />
+                <HugeiconsIcon
+                  icon={Loading03Icon}
+                  className="animate-spin text-primary"
+                  size={24}
+                />
               </div>
             ) : pending.length === 0 ? (
               <div className="flex flex-col items-center py-8 text-zinc-400">
@@ -221,10 +254,17 @@ export default function FriendsPanel() {
               </div>
             ) : (
               pending.map((req) => (
-                <div key={req.id} className="flex items-center justify-between px-3 py-2 hover:bg-zinc-50">
+                <div
+                  key={req.id}
+                  className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-50"
+                >
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">
-                      <HugeiconsIcon icon={UserCircleIcon} size={16} className="text-secondary" />
+                      <HugeiconsIcon
+                        icon={UserCircleIcon}
+                        size={16}
+                        className="text-secondary"
+                      />
                     </div>
                     <div className="min-w-0">
                       <span className="text-sm text-foreground block truncate">
@@ -244,7 +284,11 @@ export default function FriendsPanel() {
                       className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                     >
                       <HugeiconsIcon
-                        icon={responding === req.id ? Loading03Icon : CheckmarkCircle02Icon}
+                        icon={
+                          responding === req.id
+                            ? Loading03Icon
+                            : CheckmarkCircle02Icon
+                        }
                         size={18}
                         className={responding === req.id ? "animate-spin" : ""}
                       />
@@ -265,26 +309,12 @@ export default function FriendsPanel() {
 
         {tab === "search" && (
           <div className="p-3">
-            <div className="flex items-center gap-2 mb-3">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            <div className="mb-3">
+              <SearchBox
+                onSearch={handleSearch}
                 placeholder="Buscar por nombre o correo..."
-                className="flex-1 px-3 py-1.5 text-sm border border-zinc-200 rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                disabled={searching}
               />
-              <button
-                onClick={handleSearch}
-                disabled={searchQuery.trim().length < 2 || searching}
-                className="p-1.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                <HugeiconsIcon
-                  icon={searching ? Loading03Icon : Search01Icon}
-                  size={16}
-                  className={searching ? "animate-spin" : ""}
-                />
-              </button>
             </div>
 
             {searchResults.length === 0 && !searching ? (
@@ -293,12 +323,21 @@ export default function FriendsPanel() {
               </p>
             ) : (
               searchResults.map((u) => (
-                <div key={u.id} className="flex items-center justify-between px-2 py-2 hover:bg-zinc-50 rounded-lg">
+                <div
+                  key={u.id}
+                  className="flex items-center justify-between px-2 py-2 rounded-xl hover:bg-zinc-50"
+                >
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">
-                      <HugeiconsIcon icon={UserCircleIcon} size={16} className="text-secondary" />
+                      <HugeiconsIcon
+                        icon={UserCircleIcon}
+                        size={16}
+                        className="text-secondary"
+                      />
                     </div>
-                    <span className="text-sm text-foreground truncate">{u.fullName}</span>
+                    <span className="text-sm text-foreground truncate">
+                      {u.fullName}
+                    </span>
                   </div>
                   <button
                     onClick={() => handleSendRequest(u.id)}

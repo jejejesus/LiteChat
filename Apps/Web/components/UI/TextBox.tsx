@@ -68,8 +68,12 @@ export default function TextBox({
     if (isOTP) {
       const arr = value.split("").slice(0, otpLength);
       while (arr.length < otpLength) arr.push("");
+      if (arr.join("") !== otpVal.join("")) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setOtpVal(arr);
+      }
     }
-  }, [value, isOTP, otpLength]);
+  }, [value, isOTP, otpLength, otpVal]);
 
   const handleTextChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (onChange) onChange(e.target.value);

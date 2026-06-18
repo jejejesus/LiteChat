@@ -129,6 +129,11 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
 
     const trackRef = useRef<HTMLDivElement>(null);
     const activeThumbIndex = useRef<number | null>(null);
+    const registeredRef = useRef<{
+      handleMoveDrag?: (e: MouseEvent) => void;
+      handleTouchMoveDrag?: (e: TouchEvent) => void;
+      handleEndDrag?: () => void;
+    }>({});
 
     const getValueFromClientX = (clientX: number): number => {
       if (!trackRef.current) return min;
@@ -140,31 +145,25 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
       return parseFloat(stepped.toFixed(4));
     };
 
-    const handleStartDrag = (clientX: number, thumbIndex?: number) => {
-      if (disabled) return;
-      const clickVal = getValueFromClientX(clientX);
+    const handleMoveDrag = (e: MouseEvent) => {
+      if (activeThumbIndex.current === null) return;
+      updateValue(getValueFromClientX(e.clientX), activeThumbIndex.current);
+    };
 
-      let targetIndex = 0;
-      if (isRange) {
-        const valArr = localValue as [number, number];
-        if (thumbIndex !== undefined) {
-          targetIndex = thumbIndex;
-        } else {
-          const dist0 = Math.abs(valArr[0] - clickVal);
-          const dist1 = Math.abs(valArr[1] - clickVal);
-          targetIndex = dist0 < dist1 ? 0 : 1;
-        }
-      }
+    const handleTouchMoveDrag = (e: TouchEvent) => {
+      if (activeThumbIndex.current === null) return;
+      if (e.cancelable) e.preventDefault();
+      updateValue(getValueFromClientX(e.touches[0].clientX), activeThumbIndex.current);
+    };
 
-      activeThumbIndex.current = targetIndex;
-      updateValue(clickVal, targetIndex);
-
-      document.addEventListener("mousemove", handleMoveDrag);
-      document.addEventListener("mouseup", handleEndDrag);
-      document.addEventListener("touchmove", handleTouchMoveDrag, {
-        passive: false,
-      });
-      document.addEventListener("touchend", handleEndDrag);
+    const handleEndDrag = () => {
+      activeThumbIndex.current = null;
+      const h = registeredRef.current;
+      if (h.handleMoveDrag) document.removeEventListener("mousemove", h.handleMoveDrag);
+      if (h.handleEndDrag) document.removeEventListener("mouseup", h.handleEndDrag);
+      if (h.handleTouchMoveDrag) document.removeEventListener("touchmove", h.handleTouchMoveDrag);
+      if (h.handleEndDrag) document.removeEventListener("touchend", h.handleEndDrag);
+      registeredRef.current = {};
     };
 
     const updateValue = (newVal: number, index: number) => {
@@ -190,37 +189,51 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
       if (onChange) onChange(finalVal);
     };
 
-    const handleMoveDrag = (e: MouseEvent) => {
-      if (activeThumbIndex.current === null) return;
-      const clickVal = getValueFromClientX(e.clientX);
-      updateValue(clickVal, activeThumbIndex.current);
-    };
+    const handleStartDrag = (clientX: number, thumbIndex?: number) => {
+      if (disabled) return;
+      const clickVal = getValueFromClientX(clientX);
 
-    const handleTouchMoveDrag = (e: TouchEvent) => {
-      if (activeThumbIndex.current === null) return;
-      if (e.cancelable) e.preventDefault();
-      const touch = e.touches[0];
-      const clickVal = getValueFromClientX(touch.clientX);
-      updateValue(clickVal, activeThumbIndex.current);
-    };
+      let targetIndex = 0;
+      if (isRange) {
+        const valArr = localValue as [number, number];
+        if (thumbIndex !== undefined) {
+          targetIndex = thumbIndex;
+        } else {
+          const dist0 = Math.abs(valArr[0] - clickVal);
+          const dist1 = Math.abs(valArr[1] - clickVal);
+          targetIndex = dist0 < dist1 ? 0 : 1;
+        }
+      }
 
-    const handleEndDrag = () => {
-      activeThumbIndex.current = null;
-      document.removeEventListener("mousemove", handleMoveDrag);
-      document.removeEventListener("mouseup", handleEndDrag);
-      document.removeEventListener("touchmove", handleTouchMoveDrag);
-      document.removeEventListener("touchend", handleEndDrag);
+      activeThumbIndex.current = targetIndex;
+      updateValue(clickVal, targetIndex);
+
+      // Register stable wrappers via ref so cleanup works across renders
+      const onMove = (e: MouseEvent) => handleMoveDrag(e);
+      const onTouchMove = (e: TouchEvent) => handleTouchMoveDrag(e);
+      const onEnd = () => handleEndDrag();
+
+      registeredRef.current = {
+        handleMoveDrag: onMove,
+        handleTouchMoveDrag: onTouchMove,
+        handleEndDrag: onEnd,
+      };
+
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onEnd);
+      document.addEventListener("touchmove", onTouchMove, { passive: false });
+      document.addEventListener("touchend", onEnd);
     };
 
     useEffect(() => {
       return () => {
-        document.removeEventListener("mousemove", handleMoveDrag);
-        document.removeEventListener("mouseup", handleEndDrag);
-        document.removeEventListener("touchmove", handleTouchMoveDrag);
-        document.removeEventListener("touchend", handleEndDrag);
+        const h = registeredRef.current;
+        if (h.handleMoveDrag) document.removeEventListener("mousemove", h.handleMoveDrag);
+        if (h.handleEndDrag) document.removeEventListener("mouseup", h.handleEndDrag);
+        if (h.handleTouchMoveDrag) document.removeEventListener("touchmove", h.handleTouchMoveDrag);
+        if (h.handleEndDrag) document.removeEventListener("touchend", h.handleEndDrag);
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [localValue]);
+    }, []);
 
     const val0 = isRange
       ? (localValue as [number, number])[0]
