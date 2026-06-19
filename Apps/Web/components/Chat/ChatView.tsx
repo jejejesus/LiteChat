@@ -14,7 +14,7 @@ import {
 } from "@/lib/messages.api";
 import { useSignalR } from "@/contexts/SignalRContext";
 import { useAuth } from "@/contexts/AuthContext";
-import type { MessagePayload, TypingInfo } from "@/lib/signalr";
+import type { MessagePayload, MessagesReadInfo, TypingInfo } from "@/lib/signalr";
 
 interface ChatViewProps {
   conversation: Conversation;
@@ -33,6 +33,7 @@ export default function ChatView({ conversation }: ChatViewProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const userIdRef = useRef(user?.userId);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentUserId = user?.userId;
 
   useEffect(() => {
     userIdRef.current = user?.userId;
@@ -81,13 +82,40 @@ export default function ChatView({ conversation }: ChatViewProps) {
         editedAt: null,
         isEdited: false,
         attachments: [],
+        seenAt: null,
       };
       setMessages((prev) => [...prev, newMsg]);
+      signalr.markAsRead(conversation.id);
     };
 
     signalr.on("MessageReceived", handler);
     return () => signalr.off("MessageReceived", handler);
   }, [conversation.id, signalr]);
+
+  // ── Marcar mensajes como leídos al abrir la conversación ──
+  useEffect(() => {
+    signalr.markAsRead(conversation.id);
+  }, [conversation.id, signalr]);
+
+  // ── Escuchar evento MessagesRead para actualizar visto ──
+  useEffect(() => {
+    const handler = (info: MessagesReadInfo) => {
+      if (info.conversationId !== conversation.id) return;
+      if (info.userId !== currentUserId) {
+        setMessages((prev) =>
+          prev.map((msg) => {
+            if (msg.senderUserId === currentUserId && !msg.seenAt) {
+              return { ...msg, seenAt: new Date().toISOString() };
+            }
+            return msg;
+          }),
+        );
+      }
+    };
+
+    signalr.on("MessagesRead", handler);
+    return () => signalr.off("MessagesRead", handler);
+  }, [conversation.id, currentUserId, signalr]);
 
   // ── Escuchar indicadores de escritura ──
   useEffect(() => {
@@ -151,7 +179,6 @@ export default function ChatView({ conversation }: ChatViewProps) {
     [conversation.id, signalr],
   );
 
-  const currentUserId = user?.userId;
   const typingEntries = Array.from(typingUsers.entries()).filter(
     ([id]) => id !== currentUserId,
   );
@@ -215,6 +242,11 @@ export default function ChatView({ conversation }: ChatViewProps) {
                 >
                   {msg.body}
                 </p>
+                {msg.senderUserId === currentUserId && msg.seenAt && (
+                  <span className="text-[10px] text-zinc-400 mt-0.5 block">
+                    Visto
+                  </span>
+                )}
               </div>
             </div>
           ))

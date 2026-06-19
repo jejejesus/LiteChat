@@ -27,4 +27,6 @@ public class MessageDTO
     public bool IsEdited => EditedAt.HasValue;
     /// <summary>Archivos adjuntos al mensaje.</summary>
     public List<MessageAttachmentDTO> Attachments { get; set; } = [];
+    /// <summary>Fecha y hora en que el destinatario vio el mensaje (null si no visto).</summary>
+    public DateTime? SeenAt { get; set; }
 }

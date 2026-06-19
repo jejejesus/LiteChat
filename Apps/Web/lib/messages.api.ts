@@ -24,6 +24,7 @@ export interface Message {
   editedAt: string | null;
   isEdited: boolean;
   attachments: Attachment[];
+  seenAt: string | null;
 }
 
 export interface Attachment {

@@ -152,6 +152,16 @@ public class ChatHub : Hub
         if (member != null)
         {
             member.LastReadAt = DateTime.UtcNow;
+
+            var lastMessage = await _db.Messages
+                .Where(m => m.ConversationId == request.ConversationId && m.DeletedAt == null)
+                .OrderByDescending(m => m.CreatedAt)
+                .Select(m => m.Id)
+                .FirstOrDefaultAsync();
+
+            if (lastMessage != Guid.Empty)
+                member.LastReadMessageId = lastMessage;
+
             await _db.SaveChangesAsync();
         }
 

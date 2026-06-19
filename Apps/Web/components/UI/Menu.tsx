@@ -17,6 +17,7 @@ import { useSignalR } from "@/contexts/SignalRContext";
 
 import SearchBox from "./SearchBox";
 import Button from "./Button";
+import Tooltip from "./Tooltip";
 
 import LiteChatLogoH from "@/public/LiteChat-Logo-H.png";
 
@@ -49,14 +50,22 @@ export default function Menu({
 
   const navItems = [
     { key: "chats" as const, label: "Chats", icon: Message01Icon },
-    { key: "friends" as const, label: "Amigos", icon: UserGroupIcon, badge: pendingCount },
+    {
+      key: "friends" as const,
+      label: "Amigos",
+      icon: UserGroupIcon,
+      badge: pendingCount,
+    },
   ];
 
   return (
     <div className="flex flex-col h-screen bg-zinc-100">
       <nav className="flex h-14 justify-between px-1 py-2 align-middle">
         <div className="flex">
-          <button className="cursor-pointer" onClick={() => setSidebarOpen((prev) => !prev)}>
+          <button
+            className="cursor-pointer"
+            onClick={() => setSidebarOpen((prev) => !prev)}
+          >
             <HugeiconsIcon icon={Menu01Icon} className="my-2 mx-3" />
           </button>
           <Link href="/">
@@ -64,7 +73,10 @@ export default function Menu({
           </Link>
         </div>
         <div className="w-1/3">
-          <SearchBox className="w-full" onSearch={(q) => console.log("Search:", q)} />
+          <SearchBox
+            className="w-full"
+            onSearch={(q) => console.log("Search:", q)}
+          />
         </div>
         <div className="flex items-center gap-1">
           <span className="text-sm text-zinc-500 font-medium mr-1">
@@ -81,26 +93,36 @@ export default function Menu({
         </div>
       </nav>
       <div className="flex flex-1 min-h-0">
-        <aside className={`${sidebarOpen ? "w-64" : "w-0 overflow-hidden"} flex flex-col transition-all duration-300`}>
+        <aside
+          className={`${
+            sidebarOpen ? "w-64" : "w-16"
+          } flex flex-col transition-all duration-300 bg-zinc-100`}
+        >
           <nav className="flex flex-col p-2 gap-1">
             {navItems.map(({ key, label, icon, badge }) => (
-              <button
-                key={key}
-                onClick={() => onViewChange(key)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                  activeView === key
-                    ? "bg-primary/10 text-primary"
-                    : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
-                }`}
-              >
-                <HugeiconsIcon icon={icon} size={20} />
-                {label}
-                {(badge ?? 0) > 0 && (
-                  <span className="ml-auto bg-accent text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-4 text-center">
-                    {badge}
-                  </span>
-                )}
-              </button>
+              <Tooltip key={key} content={label}>
+                <button
+                  onClick={() => onViewChange(key)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer relative ${
+                    activeView === key
+                      ? "bg-primary/10 text-primary"
+                      : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+                  } ${!sidebarOpen ? "justify-center px-2" : ""}`}
+                >
+                  <HugeiconsIcon icon={icon} size={20} />
+                  {sidebarOpen && label}
+                  {(badge ?? 0) > 0 && sidebarOpen && (
+                    <span className="ml-auto bg-accent text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-4 text-center">
+                      {badge}
+                    </span>
+                  )}
+                  {(badge ?? 0) > 0 && !sidebarOpen && (
+                    <span className="absolute -top-1 -right-1 bg-accent text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                      {badge}
+                    </span>
+                  )}
+                </button>
+              </Tooltip>
             ))}
           </nav>
         </aside>

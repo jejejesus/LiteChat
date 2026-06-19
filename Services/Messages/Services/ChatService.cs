@@ -74,14 +74,28 @@ public class ChatService : IChatService
         if (!isMember)
             throw new UnauthorizedAccessException("No eres miembro de esta conversación");
 
-        var messages = await _context.Messages
+        var messageEntities = await _context.Messages
+            .AsNoTracking()
             .Where(m => m.ConversationId == conversationId && m.DeletedAt == null)
             .Include(m => m.SenderUser)
             .Include(m => m.Attachments)
             .OrderByDescending(m => m.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(m => new MessageDTO
+            .ToListAsync();
+
+        var otherMembersReadAt = await _context.ConversationMembers
+            .AsNoTracking()
+            .Where(cm => cm.ConversationId == conversationId && cm.UserId != userId && cm.LeftAt == null)
+            .MaxAsync(cm => (DateTime?)cm.LastReadAt);
+
+        var messages = messageEntities.Select(m =>
+        {
+            DateTime? seenAt = null;
+            if (m.SenderUserId == userId && otherMembersReadAt.HasValue && m.CreatedAt <= otherMembersReadAt.Value)
+                seenAt = otherMembersReadAt.Value;
+
+            return new MessageDTO
             {
                 Id = m.Id,
                 ConversationId = m.ConversationId,
@@ -92,6 +106,7 @@ public class ChatService : IChatService
                 Body = m.Body,
                 CreatedAt = m.CreatedAt,
                 EditedAt = m.EditedAt,
+                SeenAt = seenAt,
                 Attachments = m.Attachments.Select(a => new MessageAttachmentDTO
                 {
                     Id = a.Id,
@@ -100,8 +115,8 @@ public class ChatService : IChatService
                     MimeType = a.MimeType,
                     SizeBytes = a.SizeBytes
                 }).ToList()
-            })
-            .ToListAsync();
+            };
+        }).ToList();
 
         return messages;
     }
@@ -176,6 +191,16 @@ public class ChatService : IChatService
         if (member != null)
         {
             member.LastReadAt = DateTime.UtcNow;
+
+            var lastMessage = await _context.Messages
+                .Where(m => m.ConversationId == conversationId && m.DeletedAt == null)
+                .OrderByDescending(m => m.CreatedAt)
+                .Select(m => m.Id)
+                .FirstOrDefaultAsync();
+
+            if (lastMessage != Guid.Empty)
+                member.LastReadMessageId = lastMessage;
+
             await _context.SaveChangesAsync();
         }
     }

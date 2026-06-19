@@ -6,7 +6,7 @@ import { Message01Icon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { getUserConversations, type Conversation, type Message } from "@/lib/messages.api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSignalR } from "@/contexts/SignalRContext";
-import type { MessagePayload } from "@/lib/signalr";
+import type { MessagePayload, MessagesReadInfo } from "@/lib/signalr";
 
 interface ChatListProps {
   selectedId?: string | null;
@@ -62,6 +62,7 @@ export default function ChatList({ selectedId, onSelect }: ChatListProps) {
               editedAt: null,
               isEdited: false,
               attachments: [],
+              seenAt: null,
             },
             unreadCount: c.unreadCount + unreadDelta,
             updatedAt: payload.createdAt,
@@ -81,6 +82,22 @@ export default function ChatList({ selectedId, onSelect }: ChatListProps) {
 
     signalr.on("MessageReceived", handler);
     return () => signalr.off("MessageReceived", handler);
+  }, [user?.userId, signalr]);
+
+  // ── Escuchar MessagesRead para limpiar contador de no leídos ──
+  useEffect(() => {
+    const handler = (info: MessagesReadInfo) => {
+      if (info.userId === user?.userId) {
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === info.conversationId ? { ...c, unreadCount: 0 } : c,
+          ),
+        );
+      }
+    };
+
+    signalr.on("MessagesRead", handler);
+    return () => signalr.off("MessagesRead", handler);
   }, [user?.userId, signalr]);
 
   return (
