@@ -37,7 +37,7 @@ export interface DateTimePickerProps {
     | "month"
     | "year-month"
     | "year";
-  value?: any; // String date ISO, YYYY-MM-DD or { start: string, end: string }
+  value?: any;
   onChange?: (val: any) => void;
   color?: "primary" | "secondary" | "accent" | "highlight" | "neutral";
   placeholder?: string;
@@ -47,33 +47,61 @@ export interface DateTimePickerProps {
 }
 
 const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
 ];
 
-const WEEK_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const WEEK_DAYS = ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sá"];
 
-const getDaysInMonth = (year: number, month: number) =>
-  new Date(year, month + 1, 0).getDate();
-const getFirstDayOfMonth = (year: number, month: number) =>
-  new Date(year, month, 1).getDay();
+function getDaysInMonth(year: number, month: number) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function getFirstDayOfMonth(year: number, month: number) {
+  return new Date(year, month, 1).getDay();
+}
+
+function formatDateToDisplay(dateString: string): string {
+  if (!dateString) return "";
+
+  // Si es una fecha ISO (YYYY-MM-DD)
+  if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const parts = dateString.split("-");
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+
+  // Si es un objeto Date o ISO string con hora
+  try {
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+  } catch {
+    return dateString;
+  }
+
+  return dateString;
+}
 
 export default function DateTimePicker({
   mode = "date",
   value,
   onChange,
   color = "primary",
-  placeholder = "Select date/time",
+  placeholder = "Seleccionar fecha/hora",
   disabled = false,
   className = "",
   style,
@@ -85,21 +113,24 @@ export default function DateTimePicker({
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
   const [timeState, setTimeState] = useState({ hour: 12, minute: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const [yearInput, setYearInput] = useState("");
+  const [showYearInput, setShowYearInput] = useState(false);
 
   useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
+    function handleOutsideClick(e: MouseEvent) {
       if (
         containerRef.current &&
         !containerRef.current.contains(e.target as Node)
       ) {
         setIsOpen(false);
+        setShowYearInput(false);
       }
-    };
+    }
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  const handleDayClick = (day: number) => {
+  function handleDayClick(day: number) {
     if (disabled) return;
     const clickedDate = new Date(currentYear, currentMonth, day);
 
@@ -135,9 +166,9 @@ export default function DateTimePicker({
       if (onChange) onChange(`${mm}-${dd}`);
       setIsOpen(false);
     }
-  };
+  }
 
-  const handleTimeChange = (type: "hour" | "minute", increment: boolean) => {
+  function handleTimeChange(type: "hour" | "minute", increment: boolean) {
     setTimeState((prev) => {
       let val = prev[type] + (increment ? 1 : -1);
       if (type === "hour") {
@@ -161,18 +192,29 @@ export default function DateTimePicker({
       }
       return updated;
     });
-  };
+  }
 
-  const handleYearClick = (year: number) => {
+  function handleYearClick(year: number) {
     if (mode === "year") {
       if (onChange) onChange(String(year));
       setIsOpen(false);
     } else {
       setCurrentYear(year);
+      setShowYearInput(false);
     }
-  };
+  }
 
-  const changeMonth = (increment: boolean) => {
+  function handleYearInputSubmit(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      const year = parseInt(yearInput, 10);
+      if (!isNaN(year) && year >= 1900 && year <= 2100) {
+        handleYearClick(year);
+        setYearInput("");
+      }
+    }
+  }
+
+  function changeMonth(increment: boolean) {
     let nextMonth = currentMonth + (increment ? 1 : -1);
     let nextYear = currentYear;
     if (nextMonth > 11) {
@@ -185,29 +227,49 @@ export default function DateTimePicker({
     }
     setCurrentMonth(nextMonth);
     setCurrentYear(nextYear);
-  };
+  }
 
-  // Render display string
-  const getDisplayValue = () => {
+  function jumpToToday() {
+    const today = new Date();
+    setCurrentYear(today.getFullYear());
+    setCurrentMonth(today.getMonth());
+  }
+
+  function getDisplayValue() {
     if (!value) return "";
+
     if (mode === "daterange" && typeof value === "object") {
       if (!value.start) return "";
-      return `${value.start} to ${value.end || "..."}`;
+      const startFormatted = formatDateToDisplay(value.start);
+      const endFormatted = value.end ? formatDateToDisplay(value.end) : "...";
+      return `${startFormatted} hasta ${endFormatted}`;
     }
+
     if (typeof value === "string") {
       if (mode === "datetime") {
         try {
-          return new Date(value).toLocaleString();
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            const day = String(date.getDate()).padStart(2, "0");
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, "0");
+            const minutes = String(date.getMinutes()).padStart(2, "0");
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+          }
+          return value;
         } catch {
           return value;
         }
       }
+
       if (mode === "month") {
         const monthIndex = parseInt(value, 10) - 1;
         if (monthIndex >= 0 && monthIndex < 12) {
           return MONTH_NAMES[monthIndex];
         }
       }
+
       if (mode === "year-month") {
         const parts = value.split("-");
         if (parts.length === 2) {
@@ -218,12 +280,22 @@ export default function DateTimePicker({
           }
         }
       }
+
+      // Para modo "date" o cualquier otro, aplicamos formato dd/MM/yyyy
+      if (mode === "date" || mode === "month-day") {
+        return formatDateToDisplay(value);
+      }
+
       return value;
     }
+
     return String(value);
-  };
+  }
 
   const displayString = getDisplayValue();
+
+  // Quick month jump buttons
+  const quickMonthJumps = [-6, -3, -1, 0, 1, 3, 6];
 
   return (
     <div
@@ -235,15 +307,15 @@ export default function DateTimePicker({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between px-3 py-2 border border-zinc-200 rounded-xl bg-white  transition-all duration-200 text-left text-sm font-medium ${
+        className={`w-full flex items-center justify-between px-3 py-2 border border-zinc-200 rounded-xl bg-white transition-all duration-200 text-left text-sm font-medium ${
           disabled
             ? "opacity-50 cursor-not-allowed"
             : isOpen
               ? borderFocusClasses[color]
-              : "hover:border-zinc-300  hover:shadow-xs"
+              : "hover:border-zinc-300 hover:shadow-xs"
         }`}
       >
-        <span className={displayString ? "text-foreground" : "text-zinc-400 "}>
+        <span className={displayString ? "text-foreground" : "text-zinc-400"}>
           {displayString || placeholder}
         </span>
         <svg
@@ -271,12 +343,11 @@ export default function DateTimePicker({
       </button>
 
       {isOpen && (
-        <div className="absolute mt-1.5 rounded-2xl border border-zinc-150  bg-white backdrop-blur-md shadow-xl z-50 p-4 w-70 sm:w-77.5 animate-fadeIn select-none">
-          {/* 1. TIME ONLY MODE */}
+        <div className="absolute mt-1.5 rounded-2xl bg-white backdrop-blur-md shadow-xl z-50 p-4 w-70 sm:w-77.5 animate-fadeIn select-none">
           {mode === "time" && (
             <div className="flex flex-col items-center py-3">
               <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-4 select-none">
-                Set Time
+                Seleccionar Hora
               </span>
               <div className="flex items-center gap-6">
                 <div className="flex flex-col items-center">
@@ -298,7 +369,7 @@ export default function DateTimePicker({
                     ▼
                   </button>
                   <span className="text-[10px] text-zinc-400 font-bold uppercase mt-1">
-                    HR
+                    Hora
                   </span>
                 </div>
                 <span className="text-2xl font-black text-zinc-300 animate-pulse">
@@ -323,18 +394,17 @@ export default function DateTimePicker({
                     ▼
                   </button>
                   <span className="text-[10px] text-zinc-400 font-bold uppercase mt-1">
-                    MIN
+                    Min
                   </span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* 2. YEAR ONLY MODE */}
           {mode === "year" && (
             <div className="flex flex-col">
               <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider text-center mb-3">
-                Select Year
+                Seleccionar Año
               </span>
               <div className="grid grid-cols-3 gap-2 max-h-52 overflow-y-auto pr-1">
                 {Array.from(
@@ -348,7 +418,7 @@ export default function DateTimePicker({
                     className={`py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                       value === String(yr)
                         ? bgActiveClasses[color]
-                        : "hover:bg-zinc-100  text-foreground"
+                        : "hover:bg-zinc-100 text-foreground"
                     }`}
                   >
                     {yr}
@@ -358,11 +428,10 @@ export default function DateTimePicker({
             </div>
           )}
 
-          {/* 3. MONTH ONLY MODE */}
           {mode === "month" && (
             <div className="flex flex-col">
               <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider text-center mb-3">
-                Select Month
+                Seleccionar Mes
               </span>
               <div className="grid grid-cols-3 gap-2">
                 {MONTH_NAMES.map((mon, idx) => {
@@ -379,7 +448,7 @@ export default function DateTimePicker({
                       className={`py-2.5 text-xs font-semibold rounded-lg transition-colors duration-150 cursor-pointer ${
                         isSelected
                           ? bgActiveClasses[color]
-                          : "hover:bg-zinc-100  text-foreground"
+                          : "hover:bg-zinc-100 text-foreground"
                       }`}
                     >
                       {mon.slice(0, 3)}
@@ -390,14 +459,13 @@ export default function DateTimePicker({
             </div>
           )}
 
-          {/* 4. YEAR-MONTH MODE */}
           {mode === "year-month" && (
             <div className="flex flex-col">
               <div className="flex items-center justify-between mb-4 px-1">
                 <button
                   type="button"
                   onClick={() => setCurrentYear((prev) => prev - 1)}
-                  className="p-1 rounded-lg hover:bg-zinc-100  text-zinc-650 cursor-pointer"
+                  className="p-1 rounded-lg hover:bg-zinc-100 text-zinc-650 cursor-pointer"
                 >
                   ◀
                 </button>
@@ -407,7 +475,7 @@ export default function DateTimePicker({
                 <button
                   type="button"
                   onClick={() => setCurrentYear((prev) => prev + 1)}
-                  className="p-1 rounded-lg hover:bg-zinc-100  text-zinc-650 cursor-pointer"
+                  className="p-1 rounded-lg hover:bg-zinc-100 text-zinc-650 cursor-pointer"
                 >
                   ▶
                 </button>
@@ -429,7 +497,7 @@ export default function DateTimePicker({
                       className={`py-2.5 text-xs font-semibold rounded-lg transition-colors duration-150 cursor-pointer ${
                         isSelected
                           ? bgActiveClasses[color]
-                          : "hover:bg-zinc-100  text-foreground"
+                          : "hover:bg-zinc-100 text-foreground"
                       }`}
                     >
                       {mon.slice(0, 3)}
@@ -440,46 +508,135 @@ export default function DateTimePicker({
             </div>
           )}
 
-          {/* 5. CALENDAR GENERATION MODES (date, datetime, daterange, month-day) */}
           {(mode === "date" ||
             mode === "datetime" ||
             mode === "daterange" ||
             mode === "month-day") && (
             <div>
-              {/* Header Navigation */}
-              <div className="flex items-center justify-between mb-4">
-                <button
-                  type="button"
-                  onClick={() => changeMonth(false)}
-                  className="p-1.5 rounded-lg hover:bg-zinc-100  text-zinc-600  cursor-pointer"
-                >
-                  ◀
-                </button>
-                <div className="flex flex-col items-center">
-                  <span className="text-sm font-bold text-foreground">
-                    {MONTH_NAMES[currentMonth]}
-                  </span>
-                  <span className="text-[11px] font-semibold text-zinc-400 ">
-                    {currentYear}
-                  </span>
+              <div className="flex flex-col gap-2 mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => changeMonth(false)}
+                      className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-600 cursor-pointer"
+                      title="Mes anterior"
+                    >
+                      ◀
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => changeMonth(true)}
+                      className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-600 cursor-pointer"
+                      title="Mes siguiente"
+                    >
+                      ▶
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <select
+                        value={currentMonth}
+                        onChange={(e) => {
+                          setCurrentMonth(parseInt(e.target.value, 10));
+                          setShowYearInput(false);
+                        }}
+                        className="text-sm font-bold text-foreground bg-transparent border border-zinc-200 rounded-lg px-2 py-1 cursor-pointer hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      >
+                        {MONTH_NAMES.map((month, idx) => (
+                          <option key={idx} value={idx}>
+                            {month.slice(0, 3)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {showYearInput ? (
+                      <input
+                        type="number"
+                        value={yearInput || currentYear}
+                        onChange={(e) => setYearInput(e.target.value)}
+                        onKeyDown={handleYearInputSubmit}
+                        onBlur={() => {
+                          if (yearInput) {
+                            const year = parseInt(yearInput, 10);
+                            if (!isNaN(year) && year >= 1900 && year <= 2100) {
+                              handleYearClick(year);
+                            }
+                          }
+                          setYearInput("");
+                          setShowYearInput(false);
+                        }}
+                        className="w-16 text-sm font-bold text-foreground bg-white border border-zinc-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        autoFocus
+                        min={1900}
+                        max={2100}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setYearInput(String(currentYear));
+                          setShowYearInput(true);
+                        }}
+                        className="text-sm font-bold text-foreground hover:bg-zinc-100 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                      >
+                        {currentYear} ▼
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={jumpToToday}
+                    className="px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Hoy
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => changeMonth(true)}
-                  className="p-1.5 rounded-lg hover:bg-zinc-100  text-zinc-600  cursor-pointer"
-                >
-                  ▶
-                </button>
+
+                <div className="flex gap-1 justify-center flex-wrap">
+                  {quickMonthJumps.map((jump) => {
+                    const label =
+                      jump === 0
+                        ? "Este"
+                        : `${Math.abs(jump)}${jump > 0 ? "+" : "-"}`;
+                    return (
+                      <button
+                        key={jump}
+                        type="button"
+                        onClick={() => {
+                          const targetMonth = currentMonth + jump;
+                          if (targetMonth >= 0 && targetMonth < 12) {
+                            setCurrentMonth(targetMonth);
+                          } else {
+                            const yearOffset = Math.floor(targetMonth / 12);
+                            const adjustedMonth =
+                              ((targetMonth % 12) + 12) % 12;
+                            setCurrentYear(currentYear + yearOffset);
+                            setCurrentMonth(adjustedMonth);
+                          }
+                        }}
+                        className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${
+                          jump === 0
+                            ? `${textActiveClasses[color]} bg-primary/10`
+                            : "hover:bg-zinc-100 text-zinc-600"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Week Day Titles */}
               <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-zinc-400 uppercase mb-2">
                 {WEEK_DAYS.map((d) => (
                   <div key={d}>{d}</div>
                 ))}
               </div>
 
-              {/* Day Grid */}
               <div className="grid grid-cols-7 gap-1">
                 {Array.from({
                   length: getFirstDayOfMonth(currentYear, currentMonth),
@@ -531,7 +688,7 @@ export default function DateTimePicker({
                           ? bgActiveClasses[color]
                           : isInRange
                             ? `${textActiveClasses[color]} bg-zinc-100 rounded-none`
-                            : "hover:bg-zinc-100  text-foreground"
+                            : "hover:bg-zinc-100 text-foreground"
                       }`}
                     >
                       {day}
@@ -540,11 +697,10 @@ export default function DateTimePicker({
                 })}
               </div>
 
-              {/* Datetime Time spinner add-on */}
               {mode === "datetime" && (
-                <div className="mt-4 pt-3 border-t border-zinc-100  flex items-center justify-between">
+                <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between">
                   <span className="text-[10px] font-bold text-zinc-400 uppercase">
-                    Set Time:
+                    Seleccionar Hora:
                   </span>
                   <div className="flex items-center gap-2">
                     <button
@@ -554,7 +710,7 @@ export default function DateTimePicker({
                     >
                       -
                     </button>
-                    <span className="text-xs font-bold w-12 text-center bg-zinc-50 py-0.5 rounded border border-zinc-200 ">
+                    <span className="text-xs font-bold w-12 text-center bg-zinc-50 py-0.5 rounded border border-zinc-200">
                       {String(timeState.hour).padStart(2, "0")}:
                       {String(timeState.minute).padStart(2, "0")}
                     </span>
