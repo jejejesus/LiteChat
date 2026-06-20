@@ -22,9 +22,10 @@ pnpm-lock.yaml
 .pnpm-store/
 
 # Environment files
-*.env
-*.env.local
-*.env.*.local
+.env
+.env.local
+.env.*.local
+!.env.example
 
 # Build outputs
 **/dist/
@@ -57,6 +58,7 @@ Thumbs.db
 # Local config (keep templates)
 **/appsettings.json
 **/appsettings.Development.json
+!**/appsettings.example.json
 **/Properties/launchSettings.json
 
 # Test coverage
