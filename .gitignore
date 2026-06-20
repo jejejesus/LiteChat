@@ -55,6 +55,7 @@ Thumbs.db
 *.cer
 
 # Local config (keep templates)
+**/appsettings.json
 **/appsettings.Development.json
 **/Properties/launchSettings.json
 
