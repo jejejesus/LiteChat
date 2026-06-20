@@ -59,7 +59,7 @@ Thumbs.db
 **/appsettings.json
 **/appsettings.Development.json
 !**/appsettings.example.json
-**/Properties/launchSettings.json
+!**/Properties/launchSettings.json
 
 # Test coverage
 **/TestResults/
