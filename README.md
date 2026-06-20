@@ -25,10 +25,10 @@ Una aplicación de chat en tiempo real construida como proyecto de práctica, ut
 - [x] Notificaciones en tiempo real de solicitudes de amistad
 - [x] Marcado de mensajes como leídos
 - [x] Reconexión automática de WebSocket
-- [] Funcionalidad para agregar fotos de perfil
-- [] Permitir enviar imágenes, videos, notas de audio y archivos
-- [] Crear grupos y canales de difusión
-- [] Función de búsqueda de conversaciones
+- [ ] Funcionalidad para agregar fotos de perfil
+- [ ] Permitir enviar imágenes, videos, notas de audio y archivos
+- [ ] Crear grupos y canales de difusión
+- [ ] Función de búsqueda de conversaciones
 
 ## Requisitos
 
