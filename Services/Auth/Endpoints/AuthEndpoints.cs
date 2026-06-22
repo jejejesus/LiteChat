@@ -53,9 +53,9 @@ public static class AuthEndpoints
         {
             return Results.Conflict(new { error = ex.Message });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return Results.Problem("Error interno del servidor" , statusCode: 500);
+            return Results.Json(new { error = "Error interno del servidor" }, statusCode: StatusCodes.Status500InternalServerError);
         }
     }
 
@@ -71,11 +71,11 @@ public static class AuthEndpoints
         }
         catch (UnauthorizedAccessException ex)
         {
-            return Results.Unauthorized();
+            return Results.Json(new { error = ex.Message }, statusCode: StatusCodes.Status401Unauthorized);
         }
         catch (Exception)
         {
-            return Results.Problem("Error interno del servidor", statusCode: 500);
+            return Results.Json(new { error = "Error interno del servidor" }, statusCode: StatusCodes.Status500InternalServerError);
         }
     }
 

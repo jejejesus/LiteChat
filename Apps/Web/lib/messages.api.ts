@@ -86,7 +86,39 @@ async function apiFetch<T>(
     let message = `HTTP ${res.status}`;
     try {
       const parsed = JSON.parse(body);
-      message = parsed.error || message;
+      message = parsed.error || parsed.detail || parsed.title || message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message);
+  }
+
+  const text = await res.text();
+  return text ? JSON.parse(text) : (undefined as unknown as T);
+}
+
+async function friendsFetch<T>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${MESSAGES_API_URL}/api/friends${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    let message = `HTTP ${res.status}`;
+    try {
+      const parsed = JSON.parse(body);
+      message = parsed.error || parsed.detail || parsed.title || message;
     } catch {
       /* ignore */
     }
@@ -126,38 +158,6 @@ export async function markAsRead(conversationId: string): Promise<void> {
   await apiFetch(`/conversations/${conversationId}/read`, {
     method: "POST",
   });
-}
-
-async function friendsFetch<T>(
-  endpoint: string,
-  options: RequestInit = {},
-): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(options.headers as Record<string, string>),
-  };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-
-  const res = await fetch(`${MESSAGES_API_URL}/api/friends${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    let message = `HTTP ${res.status}`;
-    try {
-      const parsed = JSON.parse(body);
-      message = parsed.error || message;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(message);
-  }
-
-  const text = await res.text();
-  return text ? JSON.parse(text) : (undefined as unknown as T);
 }
 
 export async function searchUsers(query: string): Promise<UserDTO[]> {

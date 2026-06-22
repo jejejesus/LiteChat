@@ -85,8 +85,8 @@ export default function FriendsPanel() {
     try {
       const data = await getFriendsList();
       setFriends(data);
-    } catch {
-      setError("Error al cargar amigos");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al cargar amigos");
     } finally {
       setLoadingFriends(false);
     }
@@ -98,8 +98,8 @@ export default function FriendsPanel() {
     try {
       const data = await getPendingFriendRequests();
       setPending(data);
-    } catch {
-      setError("Error al cargar solicitudes");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al cargar solicitudes");
     } finally {
       setLoadingPending(false);
     }
@@ -113,8 +113,8 @@ export default function FriendsPanel() {
     try {
       const data = await searchUsers(q);
       setSearchResults(data);
-    } catch {
-      setError("Error al buscar usuarios");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al buscar usuarios");
     } finally {
       setSearching(false);
     }
@@ -129,6 +129,7 @@ export default function FriendsPanel() {
       setError("Solicitud enviada");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error al enviar solicitud");
+      setTimeout(() => setError(null), 3000);
     } finally {
       setSendingTo(null);
     }
@@ -144,8 +145,8 @@ export default function FriendsPanel() {
       await respondToFriendRequest(requestId, status);
       setPending((prev) => prev.filter((r) => r.id !== requestId));
       if (status === "Accepted") loadFriends();
-    } catch {
-      setError("Error al responder solicitud");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al responder solicitud");
     } finally {
       setResponding(null);
     }

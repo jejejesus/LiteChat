@@ -41,7 +41,7 @@ export default function LoginPage() {
             Iniciar sesión
           </h3>
           <Form onSubmit={handleSubmit}>
-            <FormField label="Email" error={error ? error : undefined}>
+            <FormField label="Email">
               <TextBox
                 type="email"
                 placeholder="Email"

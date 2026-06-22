@@ -66,8 +66,11 @@ public class AuthService : IAuthService
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Email == request.Email);
 
-        if (user == null || !VerifyPassword(request.Password, user.HashedPassword))
-            throw new UnauthorizedAccessException("Credenciales inválidas");
+        if (user == null)
+            throw new UnauthorizedAccessException("El usuario no existe");
+
+        if (!VerifyPassword(request.Password, user.HashedPassword))
+            throw new UnauthorizedAccessException("Contraseña incorrecta");
 
         if (user.Status != UserStatus.active)
             throw new UnauthorizedAccessException("Usuario no activo");

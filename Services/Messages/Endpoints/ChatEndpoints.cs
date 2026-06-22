@@ -104,9 +104,9 @@ public static class ChatEndpoints
         {
             return Results.BadRequest(new { error = ex.Message });
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
-            return Results.Forbid();
+            return Results.Json(new { error = ex.Message }, statusCode: StatusCodes.Status403Forbidden);
         }
     }
 
@@ -176,7 +176,7 @@ public static class ChatEndpoints
         IConfiguration configuration)
     {
         if (requestId != request.RequestId)
-            return Results.BadRequest("ID mismatch");
+            return Results.BadRequest(new { error = "ID mismatch" });
 
         var userId = GetUserId(user);
         var result = await chatService.RespondToFriendRequestAsync(userId, request);

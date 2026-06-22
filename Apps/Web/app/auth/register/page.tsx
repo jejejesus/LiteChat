@@ -38,7 +38,54 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
 
-    if (form.password !== form.confirmPassword) {
+    const trimmed = {
+      name: form.name.trim(),
+      firstSurname: form.firstSurname.trim(),
+      secondSurname: form.secondSurname.trim(),
+      birthDate: form.birthDate,
+      phoneNumber: form.phoneNumber.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      confirmPassword: form.confirmPassword,
+    };
+
+    if (!trimmed.name) {
+      setError("El nombre es obligatorio");
+      return;
+    }
+    if (!trimmed.firstSurname) {
+      setError("El primer apellido es obligatorio");
+      return;
+    }
+    if (!trimmed.birthDate) {
+      setError("La fecha de nacimiento es obligatoria");
+      return;
+    }
+    if (!trimmed.phoneNumber) {
+      setError("El teléfono es obligatorio");
+      return;
+    }
+    if (!/^\d{7,15}$/.test(trimmed.phoneNumber.replace(/\D/g, ""))) {
+      setError("El teléfono debe tener entre 7 y 15 dígitos");
+      return;
+    }
+    if (!trimmed.email) {
+      setError("El email es obligatorio");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed.email)) {
+      setError("El email no tiene un formato válido");
+      return;
+    }
+    if (!trimmed.password) {
+      setError("La contraseña es obligatoria");
+      return;
+    }
+    if (trimmed.password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+    if (trimmed.password !== trimmed.confirmPassword) {
       setError("Las contraseñas no coinciden");
       return;
     }
@@ -46,14 +93,14 @@ export default function RegisterPage() {
     setIsSubmitting(true);
     try {
       await register({
-        email: form.email,
-        name: form.name,
-        firstSurname: form.firstSurname,
-        secondSurname: form.secondSurname || undefined,
+        email: trimmed.email,
+        name: trimmed.name,
+        firstSurname: trimmed.firstSurname,
+        secondSurname: trimmed.secondSurname || undefined,
         surnameFirst: form.surnameFirst,
-        birthDate: form.birthDate,
-        phoneNumber: form.phoneNumber,
-        password: form.password,
+        birthDate: trimmed.birthDate,
+        phoneNumber: trimmed.phoneNumber,
+        password: trimmed.password,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al registrarse");

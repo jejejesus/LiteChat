@@ -61,7 +61,7 @@ async function apiFetch<T>(
     let message = `HTTP ${res.status}`;
     try {
       const parsed = JSON.parse(body);
-      message = parsed.error || message;
+      message = parsed.error || parsed.detail || parsed.title || message;
     } catch {
       /* ignore */
     }
